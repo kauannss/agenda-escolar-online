@@ -1,0 +1,36 @@
+
+# =========================
+# Ambiente Python
+# =========================
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# =========================
+# Variáveis e dados sensíveis
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Cache e testes
+# =========================
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# =========================
+# Logs e arquivos temporários
+# =========================
+*.log
+*.tmp
+
+# =========================
+# Configurações locais
+# =========================
+.idea/
+.DS_Store

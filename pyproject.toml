@@ -1,0 +1,24 @@
+[project]
+name = "agenda-online"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "kauan dos santos",email = "kauan14office@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13,<4.0"
+dependencies = [
+    "fastapi[standard] (>=0.143.0,<0.144.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+taskipy = "^1.14.1"
+
+[tool.taskipy.tasks]
+dev = "fastapi dev src/api/app.py --port 8080"
+prod = "uvicorn src.api.app:app --host 0.0.0.0 --port 8080 --reload"
