@@ -1,0 +1,15 @@
+- funções para escrever/ler o banco de dados
+    - criar sala
+    - editar sala
+    - deletar sala
+
+    - criar usuário 
+        - adiciona na sala
+    - editar usuário
+    - deletar usuário e remove das salas
+
+    - adicionar mensagem
+
+    - autenticação login
+
+- integração com o front-end

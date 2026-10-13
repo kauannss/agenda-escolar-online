@@ -5,3 +5,4 @@ app = FastAPI()
 @app.get ('/')
 async def home():
     return{'status':'ok'}
+
