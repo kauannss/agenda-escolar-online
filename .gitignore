@@ -1,0 +1,49 @@
+# Arquivos locais e saídas que não entram no repositório.
+
+# Dependências
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Testes
+/coverage
+
+# next.js
+/.next/
+/.vinext/
+/out/
+
+# Arquivos do sistema
+.DS_Store
+*.pem
+
+# Registros de execução
+npm-Registros de execução.log*
+yarn-Registros de execução.log*
+yarn-error.log*
+.pnpm-Registros de execução.log*
+
+# Variáveis de ambiente
+.env*
+
+# vercel
+.vercel
+
+# typescript
+next-env.d.ts
+/dist/
+/.wrangler/
+# Configurações locais de execução; não devem ser publicadas.
+/.sites-runtime/
+/.agents/
+/.codex/
+/outputs/
+/work/
+
+# Cache da verificação de tipos
+*.tsbuildinfo
