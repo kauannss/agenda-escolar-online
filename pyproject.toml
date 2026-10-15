@@ -22,5 +22,5 @@ build-backend = "poetry.core.masonry.api"
 taskipy = "^1.14.1"
 
 [tool.taskipy.tasks]
-dev = "fastapi dev src/api/app.py --port 8080"
+dev = "PYTHONPATH=. fastapi dev --entrypoint src.api.app:app --port 8080"
 prod = "uvicorn src.api.app:app --host 0.0.0.0 --port 8080 --reload"

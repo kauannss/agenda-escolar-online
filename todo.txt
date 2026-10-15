@@ -1,15 +1,15 @@
 - funções para escrever/ler o banco de dados
-    - criar sala
-    - editar sala
-    - deletar sala
+    x- criar sala
+    x- editar sala
+    x- deletar sala
 
-    - criar usuário 
-        - adiciona na sala
-    - editar usuário
-    - deletar usuário e remove das salas
+    x- criar usuário 
+        x- adiciona na sala
+    x- editar usuário
+    x- deletar usuário e remove das salas
 
-    - adicionar mensagem
-
+    x- api router estruturado
     - autenticação login
+        - finalizar logica de login
 
 - integração com o front-end

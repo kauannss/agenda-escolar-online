@@ -1,8 +1,12 @@
 from fastapi import FastAPI
+from src.api.config import configure_routes
 
-app = FastAPI()
+def create_app():
+    app = FastAPI()
 
-@app.get ('/')
-async def home():
-    return{'status':'ok'}
+    #incluir rotas
+    configure_routes(app)
 
+    return app
+
+app = create_app()

@@ -83,7 +83,6 @@ def select_data():
 
 # Chamada inicial para verificar a conexão ao importar o módulo.
 # Mantida apenas para facilitar testes localizados durante a construção do backend.
-select_data()
 
 # -----------------------------------------------------------------------------
 # GERENCIAMENTO DE TURMAS
@@ -187,5 +186,17 @@ def criar_dados_professores(id_turma:str, id_professor:str):
         print("Conexão bem-sucedida!", test.data)
     except Exception as e:
         print("Erro ao conectar ao Supabase:", e)
+
+def consultar_user_login(id:str):
+    
+    
+    try:
+        test2 = supabase.table("usuarios").select("*").eq("id", id).execute()
+        print(test2)
+        return test2.data  
+        
+    except Exception as e:
+        return "Erro ao conectar ao Supabase:", e
+    
 
 
