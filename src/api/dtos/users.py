@@ -7,7 +7,7 @@ class userRegistration(BaseModel):
     date_of_birth:str
     id_turma:str
 
-    
+
 class userLogin(BaseModel):
     id:str
-    date_of_birth:str
+    password:str

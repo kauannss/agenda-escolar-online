@@ -188,15 +188,18 @@ def criar_dados_professores(id_turma:str, id_professor:str):
         print("Erro ao conectar ao Supabase:", e)
 
 def consultar_user_login(id:str):
-    
-    
+
     try:
         test2 = supabase.table("usuarios").select("*").eq("id", id).execute()
-        print(test2)
-        return test2.data  
-        
+
+        if not test2.data[0]:
+            raise LookupError ("usuário não encontrado")
+
+
+        return (test2.data[0]["data_nascimento"])
+
     except Exception as e:
-        return "Erro ao conectar ao Supabase:", e
+        raise
     
 
 

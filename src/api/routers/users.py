@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from src.api.dtos.users import userRegistration, userLogin
 from src.datalayer.data import create_user, consultar_user_login
 from datetime import datetime
+from fastapi import HTTPException
 
 #definindo funções rota
 
@@ -32,10 +33,27 @@ async def register(body: userRegistration):
         body.id_turma,
     )
 
-@router.get("/login")
+@router.post("/login")
 async def read_users(body: userLogin):
     #faça um busca no banco de dados
-    consultar_user_login(body.id, body.date_of_birth)
+    try:
+        password =consultar_user_login(body.id)
+
+    except LookupError:
+        raise HTTPException(
+            status_code=401,
+            detail="Credenciais inválidas"
+        )
+
+    passwordn = datetime.strptime(password, "%Y-%m-%d").strftime("%d%m%Y")
+
+    if passwordn != body.password:
+        raise HTTPException(
+            status_code=401,
+            detail="Credenciais inválidas"
+        )
+    elif passwordn == body.password:
+        return ["credencias corretas"]
 
 
     #verificar se o acesso existe se não retorna email/senha incorretos
