@@ -1,0 +1,15 @@
+- funções para escrever/ler o banco de dados
+    x- criar sala
+    x- editar sala
+    x- deletar sala
+
+    x- criar usuário 
+        x- adiciona na sala
+    x- editar usuário
+    x- deletar usuário e remove das salas
+
+    x- api router estruturado
+    - autenticação login
+        - finalizar logica de login
+
+- integração com o front-end
