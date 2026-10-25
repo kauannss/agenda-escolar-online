@@ -1,19 +1,61 @@
 "use client";
-
-import { useState, type FormEvent } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
+import { isAxiosError } from "axios";
 import { BookOpen, Eye, EyeOff, LockKeyhole } from "lucide-react";
 import "./login.css";
+import api from '../services/api';
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage(
-      "A autenticação ainda não está conectada. Nenhum dado foi enviado.",
-    );
+  // Permitem ler os valores atuais dos campos sem manter cada tecla em estado React.
+  const inputlogin = useRef<HTMLInputElement>(null);
+  const inputPassword = useRef<HTMLInputElement>(null);
+
+  // Envia as credenciais para a rota de login do FastAPI.
+  function login(identifier: string, password: string) {
+    return api.post("/users/login", {
+      id: identifier,
+      password,
+    });
+  }
+
+  // Valida os campos, chama a API e traduz o resultado em uma mensagem para a tela.
+  async function handleSubmit() {
+    const loginInput = inputlogin.current;
+    const passwordInput = inputPassword.current;
+
+    // Se os elementos ainda não estiverem montados, não há dados para enviar.
+    if (!loginInput || !passwordInput) return;
+
+    // Apresenta a validação nativa dos inputs obrigatórios antes da requisição.
+    if (!loginInput.reportValidity() || !passwordInput.reportValidity()) return;
+
+    try {
+      await login(loginInput.value, passwordInput.value);
+      setMessage(
+        "Credenciais aceitas pela API. A sessão ainda não está configurada.",
+      );
+    } catch (error: unknown) {
+      // A API pode devolver um detalhe legível, como credenciais inválidas.
+      if (isAxiosError<{ detail?: unknown }>(error)) {
+        const detail = error.response?.data?.detail;
+        if (typeof detail === "string") {
+          setMessage(detail);
+        // Uma resposta HTTP indica que a API respondeu, mas rejeitou a operação.
+        } else if (error.response) {
+          setMessage("Não foi possível entrar. Verifique os dados e tente novamente.");
+        // Sem resposta HTTP, provavelmente a API está indisponível ou inacessível.
+        } else {
+          setMessage("Não foi possível conectar à API. Tente novamente.");
+        }
+        return;
+      }
+
+      setMessage("Ocorreu um erro inesperado ao tentar entrar.");
+    }
   }
 
   return (
@@ -59,13 +101,17 @@ export default function LoginPage() {
             <p>Entre com seus dados para acompanhar a agenda escolar.</p>
           </div>
 
-          <form className="login-form" onSubmit={handleSubmit}>
+          <form
+            className="login-form"
+            onSubmit={(event) => event.preventDefault()}
+          >
             <div className="login-field">
               <label htmlFor="login-identifier">E-mail ou identificação</label>
               <input
                 id="login-identifier"
                 name="identifier"
                 type="text"
+                ref={inputlogin}
                 autoComplete="username"
                 placeholder="Digite seu e-mail ou identificação"
                 required
@@ -81,6 +127,7 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   placeholder="Digite sua senha"
+                  ref={inputPassword}
                   required
                 />
                 <button
@@ -99,7 +146,11 @@ export default function LoginPage() {
               Precisa de acesso? Entre em contato com a gestão da escola.
             </p>
 
-            <button className="login-submit" type="submit">
+            <button
+              className="login-submit"
+              type="button"
+              onClick={handleSubmit}
+            >
               Entrar
               <span aria-hidden="true">→</span>
             </button>
