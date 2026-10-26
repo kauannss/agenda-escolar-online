@@ -18,7 +18,7 @@ export default function LoginPage() {
   function login(identifier: string, password: string) {
     return api.post("/users/login", {
       id: identifier,
-      password,
+      password: password,
     });
   }
 

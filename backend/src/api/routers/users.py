@@ -45,6 +45,7 @@ async def read_users(body: userLogin):
             detail="Credenciais inválidas"
         )
 
+    print(body.id, body.password)
     passwordn = datetime.strptime(password, "%Y-%m-%d").strftime("%d%m%Y")
 
     if passwordn != body.password:
