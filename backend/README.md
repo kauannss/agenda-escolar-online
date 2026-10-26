@@ -3,7 +3,7 @@ Projeto Integrador 2 da UNIVESP: desenvolvimento de uma agenda escolar online pa
 
 ## CORS
 
-Em desenvolvimento, a API permite chamadas dos front-ends locais em `localhost` e `127.0.0.1`, nas portas `3000` e `5173`.
+Em desenvolvimento, a API permite chamadas dos front-ends locais em `localhost` e `127.0.0.1`, nas portas `3000` e `5173`. O domínio de produção atual `https://agenda-escolar-online-sz6h.vercel.app` também está permitido por padrão.
 
 Em produção, configure a variável de ambiente `CORS_ORIGINS` no serviço que hospeda a API com a origem exata do front-end. Para mais de uma origem, separe os endereços por vírgula, sem barra no final:
 
@@ -12,3 +12,5 @@ CORS_ORIGINS=https://seu-projeto.vercel.app,https://www.seu-dominio.com
 ```
 
 Não use `*` para liberar qualquer origem. Depois de alterar a variável no serviço de hospedagem, reinicie ou publique novamente a API.
+
+No projeto do front-end hospedado na Vercel, configure `NEXT_PUBLIC_API_URL` com a URL pública do serviço FastAPI, por exemplo `https://sua-api.exemplo.com`. Em desenvolvimento local, essa variável pode ficar sem definição e o cliente Axios usa `http://127.0.0.1:8080`.
