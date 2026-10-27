@@ -35,9 +35,8 @@ export default function LoginPage() {
 
     try {
       await login(loginInput.value, passwordInput.value);
-      setMessage(
-        "Credenciais aceitas pela API. A sessão ainda não está configurada.",
-      );
+      const { data: currentUser } = await api.get<{ id: string }>("/users/me");
+      setMessage(`Sessão validada para o usuário ${currentUser.id}.`);
     } catch (error: unknown) {
       // A API pode devolver um detalhe legível, como credenciais inválidas.
       if (isAxiosError<{ detail?: unknown }>(error)) {

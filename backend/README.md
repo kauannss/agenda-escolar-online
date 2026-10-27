@@ -15,10 +15,14 @@ Não use `*` para liberar qualquer origem. Depois de alterar a variável no serv
 
 No projeto do front-end hospedado na Vercel, configure `NEXT_PUBLIC_API_URL` com a URL pública do serviço FastAPI, por exemplo `https://sua-api.exemplo.com`. Em desenvolvimento local, essa variável pode ficar sem definição e o cliente Axios usa `http://127.0.0.1:8080`.
 
-## Criação de sessão no login
+## Sessões de login
 
-Após validar o identificador e a senha temporária (data de nascimento no formato `DDMMYYYY`), `POST /users/login` cria um token aleatório. O backend grava na tabela `sessions` somente o hash SHA-256 do token, junto com `id_usuarios` e `created_at`, e retorna o token original como `access_token`.
+`POST /users/login` valida o identificador e a senha temporária (data de nascimento no formato `DDMMYYYY`), cria um token aleatório e grava na tabela `sessions` somente o hash SHA-256 do token junto com `id_usuarios` e `created_at`. O token original é entregue ao navegador em um cookie `HttpOnly`, não no JSON da resposta.
 
-Para permitir esse insert sem usar a chave publicável, configure `SUPABASE_SECRET_KEY` somente no ambiente do backend (localmente no `.env` do backend e, em produção, nas variáveis do serviço que hospeda o FastAPI). Nunca use essa chave no front-end nem em uma variável `NEXT_PUBLIC_*`. A tabela `sessions` deve ter RLS habilitado; o backend usa a chave secreta no servidor para o insert.
+`GET /users/me` lê o cookie, calcula o hash, procura a sessão no Supabase e retorna o identificador do usuário se a sessão ainda for válida. Sessões duram 12 horas por padrão; `SESSION_TTL_SECONDS` altera esse prazo. Sessões expiradas ou desconhecidas recebem `401`, e o cookie inválido é removido.
 
-Esta etapa apenas cria e retorna a sessão. O cookie seguro, a validação do token em rotas protegidas, a expiração e o logout ainda não estão implementados. Até isso ser feito, o `access_token` não autentica outras requisições. A senha baseada na data de nascimento também é temporária e fraca para uso real.
+Configure `SUPABASE_SECRET_KEY` somente no backend. Ela é necessária porque o backend acessa a tabela `sessions` com uma chave de servidor. Nunca coloque essa chave no front-end ou em uma variável `NEXT_PUBLIC_*`. Ative RLS na tabela `sessions` e não crie políticas para acesso público; o backend usa a chave secreta no servidor.
+
+Para produção com front-end e API em sites diferentes, configure no backend `SESSION_COOKIE_SECURE=true` e `SESSION_COOKIE_SAMESITE=none`, além de `CORS_ORIGINS` com a origem exata do front-end. Em desenvolvimento local, os padrões são `SESSION_COOKIE_SECURE=false` e `SESSION_COOKIE_SAMESITE=lax`. CORS permite credenciais e o cliente Axios deve usar `withCredentials: true`.
+
+O cookie é criado e validado por `/users/me`, mas a proteção das demais rotas, o logout e a renovação da sessão ainda não estão implementados. A senha baseada na data de nascimento é temporária e fraca para uso real.

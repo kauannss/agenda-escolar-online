@@ -3,10 +3,11 @@ import os
 import random
 import secrets
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from src.api.session_config import SESSION_TTL_SECONDS
 
 # -----------------------------------------------------------------------------
 # CAMADA DE DADOS
@@ -38,19 +39,64 @@ class SessionStorageNotConfigured(RuntimeError):
     """Raised when the backend-only Supabase key for sessions is missing."""
 
 
+def _session_supabase_client() -> Client:
+    secret_key = os.getenv("SUPABASE_SECRET_KEY")
+    if not secret_key:
+        raise SessionStorageNotConfigured(
+            "Configure SUPABASE_SECRET_KEY in the backend environment."
+        )
+    return create_client(url, secret_key)
+
+
 def create_session(user_id: str) -> str:
     """Persist a session token hash and return the original token to the caller."""
-
     session_token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(session_token.encode("utf-8")).hexdigest()
-    supabase.table("sessions").insert(
+    session_client = _session_supabase_client()
+    session_client.table("sessions").insert(
         {
             "token": token_hash,
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "id_usuarios": user_id,
         }
     ).execute()
 
     return session_token
+
+
+def get_session_user_id(session_token: str) -> str | None:
+    """Return the user id for a valid, unexpired session token."""
+    token_hash = hashlib.sha256(session_token.encode("utf-8")).hexdigest()
+    session_client = _session_supabase_client()
+    result = (
+        session_client.table("sessions")
+        .select("id_usuarios,created_at")
+        .eq("token", token_hash)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        return None
+
+    session = result.data[0]
+    created_at_value = session.get("created_at")
+    if not isinstance(created_at_value, str):
+        return None
+
+    try:
+        created_at = datetime.fromisoformat(created_at_value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+
+    now = datetime.now(timezone.utc)
+    if created_at > now or now - created_at > timedelta(seconds=SESSION_TTL_SECONDS):
+        return None
+
+    user_id = session.get("id_usuarios")
+    return user_id if isinstance(user_id, str) and user_id else None
 
 
 # -----------------------------------------------------------------------------
