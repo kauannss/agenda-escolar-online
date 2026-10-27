@@ -1,6 +1,11 @@
 from fastapi import APIRouter
 from src.api.dtos.users import userRegistration, userLogin
-from src.datalayer.data import create_user, consultar_user_login
+from src.datalayer.data import (
+    SessionStorageNotConfigured,
+    create_session,
+    create_user,
+    consultar_user_login,
+)
 from datetime import datetime
 from fastapi import HTTPException
 
@@ -34,28 +39,40 @@ async def register(body: userRegistration):
     )
 
 @router.post("/login")
-async def read_users(body: userLogin):
-    #faça um busca no banco de dados
+async def login(body: userLogin):
     try:
-        password =consultar_user_login(body.id)
-
+        date_of_birth = consultar_user_login(body.id)
     except LookupError:
         raise HTTPException(
             status_code=401,
             detail="Credenciais inválidas"
-        )
+        ) from None
 
-    print(body.id, body.password)
-    passwordn = datetime.strptime(password, "%Y-%m-%d").strftime("%d%m%Y")
+    try:
+        expected_password = datetime.strptime(
+            date_of_birth, "%Y-%m-%d"
+        ).strftime("%d%m%Y")
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=500,
+            detail="Data de nascimento do usuário inválida no cadastro.",
+        ) from None
 
-    if passwordn != body.password:
+    if expected_password != body.password:
         raise HTTPException(
             status_code=401,
             detail="Credenciais inválidas"
         )
-    elif passwordn == body.password:
-        return ["credencias corretas"]
 
+    try:
+        session_token = create_session(body.id)
+    except SessionStorageNotConfigured as error:
+        raise HTTPException(
+            status_code=503,
+            detail="A criação de sessão ainda não está configurada no servidor.",
+        ) from error
 
-    #verificar se o acesso existe se não retorna email/senha incorretos
-    #se acesso existir testa senha se senha não for correta retorna email/senha incorretos
+    return {
+        "access_token": session_token,
+        "token_type": "bearer",
+    }

@@ -1,9 +1,11 @@
+import hashlib
 import os
+import random
+import secrets
+import time
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-import time
-from multiprocessing.dummy.connection import Client
-import random
 from supabase import create_client, Client
 
 # -----------------------------------------------------------------------------
@@ -30,6 +32,26 @@ url: str = os.getenv("SUPABASE_URL")
 key: str = os.getenv("SUPABASE_PUBLISHABLE_KEY")
 
 supabase: Client = create_client(url, key)
+
+
+class SessionStorageNotConfigured(RuntimeError):
+    """Raised when the backend-only Supabase key for sessions is missing."""
+
+
+def create_session(user_id: str) -> str:
+    """Persist a session token hash and return the original token to the caller."""
+
+    session_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(session_token.encode("utf-8")).hexdigest()
+    supabase.table("sessions").insert(
+        {
+            "token": token_hash,
+            "id_usuarios": user_id,
+        }
+    ).execute()
+
+    return session_token
+
 
 # -----------------------------------------------------------------------------
 # BLOCO DE FUNÇÕES ANTIGAS / REFERÊNCIA
@@ -188,18 +210,9 @@ def criar_dados_professores(id_turma:str, id_professor:str):
         print("Erro ao conectar ao Supabase:", e)
 
 def consultar_user_login(id:str):
+    result = supabase.table("usuarios").select("*").eq("id", id).execute()
+    if not result.data:
+        raise LookupError("usuário não encontrado")
 
-    try:
-        test2 = supabase.table("usuarios").select("*").eq("id", id).execute()
-
-        if not test2.data[0]:
-            raise LookupError ("usuário não encontrado")
-
-
-        return (test2.data[0]["data_nascimento"])
-
-    except Exception as e:
-        raise
+    return result.data[0]["data_nascimento"]
     
-
-
