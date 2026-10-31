@@ -13,7 +13,7 @@ CORS_ORIGINS=https://seu-projeto.vercel.app,https://www.seu-dominio.com
 
 Não use `*` para liberar qualquer origem. Depois de alterar a variável no serviço de hospedagem, reinicie ou publique novamente a API.
 
-No projeto do front-end hospedado na Vercel, configure `NEXT_PUBLIC_API_URL` com a URL pública do serviço FastAPI, por exemplo `https://sua-api.exemplo.com`. Em desenvolvimento local, essa variável pode ficar sem definição e o cliente Axios usa `http://127.0.0.1:8080`.
+O front-end encaminha as chamadas de autenticação pelo servidor Next. Configure `API_URL` no ambiente do Next/Vercel com a URL base pública do FastAPI (por exemplo, `https://sua-api.exemplo.com`). Em desenvolvimento, o proxy usa `http://127.0.0.1:8080` por padrão.
 
 ## Sessões de login
 
@@ -23,6 +23,6 @@ No projeto do front-end hospedado na Vercel, configure `NEXT_PUBLIC_API_URL` com
 
 Configure `SUPABASE_SECRET_KEY` somente no backend. Ela é necessária porque o backend acessa a tabela `sessions` com uma chave de servidor. Nunca coloque essa chave no front-end ou em uma variável `NEXT_PUBLIC_*`. Ative RLS na tabela `sessions` e não crie políticas para acesso público; o backend usa a chave secreta no servidor.
 
-Para produção com front-end e API em sites diferentes, configure no backend `SESSION_COOKIE_SECURE=true` e `SESSION_COOKIE_SAMESITE=none`, além de `CORS_ORIGINS` com a origem exata do front-end. Em desenvolvimento local, os padrões são `SESSION_COOKIE_SECURE=false` e `SESSION_COOKIE_SAMESITE=lax`. CORS permite credenciais e o cliente Axios deve usar `withCredentials: true`.
+O cookie é entregue pelo proxy Next no domínio do próprio front-end, por isso não é necessário permitir cookies de terceiros nem usar `SameSite=None`. Em produção, configure no backend `SESSION_COOKIE_SECURE=true` e `SESSION_COOKIE_SAMESITE=lax`. Em desenvolvimento HTTP, os padrões são `SESSION_COOKIE_SECURE=false` e `SESSION_COOKIE_SAMESITE=lax`. CORS continua restrito às origens listadas, mas a chamada do navegador ao proxy Next é same-origin.
 
 O cookie é criado e validado por `/users/me`, mas a proteção das demais rotas, o logout e a renovação da sessão ainda não estão implementados. A senha baseada na data de nascimento é temporária e fraca para uso real.

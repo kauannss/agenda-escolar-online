@@ -91,7 +91,6 @@ async def login(body: userLogin, response: Response):
 
 
 async def require_session(
-    response: Response,
     session_token: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
 ) -> str:
     if not session_token:
@@ -106,18 +105,9 @@ async def require_session(
         ) from error
 
     if user_id is None:
-        expired_cookie_response = Response()
-        expired_cookie_response.delete_cookie(
-            key=SESSION_COOKIE_NAME,
-            path="/",
-            httponly=True,
-            secure=SESSION_COOKIE_SECURE,
-            samesite=SESSION_COOKIE_SAMESITE,
-        )
         raise HTTPException(
             status_code=401,
             detail="Sessão inválida ou expirada.",
-            headers={"Set-Cookie": expired_cookie_response.headers["set-cookie"]},
         )
 
     return user_id

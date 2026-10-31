@@ -1,12 +1,14 @@
 "use client";
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { isAxiosError } from "axios";
 import { BookOpen, Eye, EyeOff, LockKeyhole } from "lucide-react";
 import "./login.css";
 import api from '../services/api';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -16,7 +18,7 @@ export default function LoginPage() {
 
   // Envia as credenciais para a rota de login do FastAPI.
   function login(identifier: string, password: string) {
-    return api.post("/users/login", {
+    return api.post("/login", {
       id: identifier,
       password: password,
     });
@@ -35,8 +37,8 @@ export default function LoginPage() {
 
     try {
       await login(loginInput.value, passwordInput.value);
-      const { data: currentUser } = await api.get<{ id: string }>("/users/me");
-      setMessage(`Sessão validada para o usuário ${currentUser.id}.`);
+      await api.get<{ id: string }>("/me");
+      router.replace("/home");
     } catch (error: unknown) {
       // A API pode devolver um detalhe legível, como credenciais inválidas.
       if (isAxiosError<{ detail?: unknown }>(error)) {

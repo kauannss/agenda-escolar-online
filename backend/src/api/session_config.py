@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 SESSION_COOKIE_NAME = "agenda_session"
 SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", "43200"))
 SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"

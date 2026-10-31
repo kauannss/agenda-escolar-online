@@ -39,21 +39,15 @@ class SessionStorageNotConfigured(RuntimeError):
     """Raised when the backend-only Supabase key for sessions is missing."""
 
 
-def _session_supabase_client() -> Client:
-    secret_key = os.getenv("SUPABASE_SECRET_KEY")
-    if not secret_key:
-        raise SessionStorageNotConfigured(
-            "Configure SUPABASE_SECRET_KEY in the backend environment."
-        )
-    return create_client(url, secret_key)
+
 
 
 def create_session(user_id: str) -> str:
     """Persist a session token hash and return the original token to the caller."""
     session_token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(session_token.encode("utf-8")).hexdigest()
-    session_client = _session_supabase_client()
-    session_client.table("sessions").insert(
+
+    supabase.table("sessions").insert(
         {
             "token": token_hash,
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -67,9 +61,8 @@ def create_session(user_id: str) -> str:
 def get_session_user_id(session_token: str) -> str | None:
     """Return the user id for a valid, unexpired session token."""
     token_hash = hashlib.sha256(session_token.encode("utf-8")).hexdigest()
-    session_client = _session_supabase_client()
     result = (
-        session_client.table("sessions")
+        supabase.table("sessions")
         .select("id_usuarios,created_at")
         .eq("token", token_hash)
         .limit(1)

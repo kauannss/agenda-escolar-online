@@ -12,6 +12,12 @@ Projeto Integrador 2 da UNIVESP: desenvolvimento de uma agenda escolar online pa
 
 Os dados são fictícios. As alterações ficam apenas na sessão e são perdidas ao recarregar a página. A integração com banco de dados está prevista para uma próxima etapa.
 
+## Login e conexão com a API
+
+O front-end encaminha o login e a consulta de sessão por rotas do Next (`/api/auth/login` e `/api/auth/me`). Isso mantém o cookie de sessão no mesmo domínio do site e evita depender de cookies de terceiros entre a Vercel e o host do FastAPI.
+
+Em desenvolvimento, configure `API_URL` no ambiente do Next se a API não estiver em `http://127.0.0.1:8080`. Para testar as rotas do proxy localmente com Next.js, use `npx next dev --port 3000`. Na Vercel, configure `API_URL` com a URL base pública do FastAPI (por exemplo, `https://sua-api.exemplo.com`) nas variáveis do projeto e faça um novo deploy. Essa variável é usada no servidor Next; não use `NEXT_PUBLIC_API_URL` para este proxy.
+
 ## Como executar
 
 É necessário ter Node.js 22.13.0 ou superior.
