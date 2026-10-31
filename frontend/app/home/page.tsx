@@ -14,7 +14,7 @@ export default function HomePage() {
 
   const checkSession = useCallback(async () => {
     try {
-      await api.get("/me");
+      await api.get("/users/me");
       setStatus("authenticated");
     } catch (error: unknown) {
       if (isAxiosError(error) && error.response?.status === 401) {

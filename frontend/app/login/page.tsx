@@ -18,7 +18,7 @@ export default function LoginPage() {
 
   // Envia as credenciais para a rota de login do FastAPI.
   function login(identifier: string, password: string) {
-    return api.post("/login", {
+    return api.post("/users/login", {
       id: identifier,
       password: password,
     });
@@ -37,7 +37,7 @@ export default function LoginPage() {
 
     try {
       await login(loginInput.value, passwordInput.value);
-      await api.get<{ id: string }>("/me");
+      await api.get<{ id: string }>("/users/me");
       router.replace("/home");
     } catch (error: unknown) {
       // A API pode devolver um detalhe legível, como credenciais inválidas.
