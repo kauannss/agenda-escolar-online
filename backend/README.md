@@ -13,16 +13,16 @@ CORS_ORIGINS=https://seu-projeto.vercel.app,https://www.seu-dominio.com
 
 Não use `*` para liberar qualquer origem. Depois de alterar a variável no serviço de hospedagem, reinicie ou publique novamente a API.
 
-O front-end encaminha as chamadas de autenticação pelo servidor Next. Configure `API_URL` no ambiente do Next/Vercel com a URL base pública do FastAPI (por exemplo, `https://sua-api.exemplo.com`). Em desenvolvimento, o proxy usa `http://127.0.0.1:8080` por padrão.
+O front-end chama a API diretamente pelo navegador, usando a URL definida em `frontend/app/services/api.js`. Para testes com o front-end na Vercel e o backend local, o navegador precisa conseguir acessar `http://127.0.0.1:8080`; em produção, esse endereço deve ser substituído pela URL HTTPS pública do backend.
 
 ## Sessões de login
 
 `POST /users/login` valida o identificador e a senha temporária (data de nascimento no formato `DDMMYYYY`), cria um token aleatório e grava na tabela `sessions` somente o hash SHA-256 do token junto com `id_usuarios` e `created_at`. O token original é entregue ao navegador em um cookie `HttpOnly`, não no JSON da resposta.
 
-`GET /users/me` lê o cookie, calcula o hash, procura a sessão no Supabase e retorna o identificador do usuário se a sessão ainda for válida. Sessões duram 12 horas por padrão; `SESSION_TTL_SECONDS` altera esse prazo. Sessões expiradas ou desconhecidas recebem `401`, e o cookie inválido é removido.
+`GET /users/me` lê o cookie, valida a sessão no Supabase e retorna `id`, `nome`, `tipo`, `turma` e `pai`. Para aluno, `nome` vem de `usuarios`, e `turma` vem do relacionamento em `usuarios_dados_alunos` com `turmas`. `pai` fica vazio enquanto não houver um campo ou relacionamento de responsável disponível no banco. Sessões duram 12 horas por padrão; `SESSION_TTL_SECONDS` altera esse prazo. Sessões expiradas ou desconhecidas recebem `401`.
 
-Configure `SUPABASE_SECRET_KEY` somente no backend. Ela é necessária porque o backend acessa a tabela `sessions` com uma chave de servidor. Nunca coloque essa chave no front-end ou em uma variável `NEXT_PUBLIC_*`. Ative RLS na tabela `sessions` e não crie políticas para acesso público; o backend usa a chave secreta no servidor.
+`POST /users/logout` remove do Supabase o hash da sessão apresentada no cookie e expira o cookie no navegador. A rota retorna sucesso mesmo que o navegador não envie um cookie.
 
-O cookie é entregue pelo proxy Next no domínio do próprio front-end, por isso não é necessário permitir cookies de terceiros nem usar `SameSite=None`. Em produção, configure no backend `SESSION_COOKIE_SECURE=true` e `SESSION_COOKIE_SAMESITE=lax`. Em desenvolvimento HTTP, os padrões são `SESSION_COOKIE_SECURE=false` e `SESSION_COOKIE_SAMESITE=lax`. CORS continua restrito às origens listadas, mas a chamada do navegador ao proxy Next é same-origin.
+O cookie é `HttpOnly`; o navegador o armazena e o envia nas chamadas seguintes. Como o front-end e a API podem estar em sites diferentes, o backend deve usar `SESSION_COOKIE_SAMESITE=none` e `SESSION_COOKIE_SECURE=true` para esse cenário. Em produção, a API deve usar HTTPS; para desenvolvimento, o loopback local (`localhost`/`127.0.0.1`) pode ser usado. Navegadores podem bloquear cookies de terceiros conforme as configurações de privacidade.
 
-O cookie é criado e validado por `/users/me`, mas a proteção das demais rotas, o logout e a renovação da sessão ainda não estão implementados. A senha baseada na data de nascimento é temporária e fraca para uso real.
+A tela `/home` consulta `/users/me` ao abrir, mostra o perfil retornado e redireciona para `/login` quando a API responde `401`. A senha baseada na data de nascimento é temporária e fraca para uso real.

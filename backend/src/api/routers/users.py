@@ -4,7 +4,9 @@ from src.datalayer.data import (
     SessionStorageNotConfigured,
     create_session,
     create_user,
+    get_user_profile,
     get_session_user_id,
+    revoke_session,
     consultar_user_login,
 )
 from datetime import datetime
@@ -115,4 +117,28 @@ async def require_session(
 
 @router.get("/me")
 async def current_user(user_id: str = Depends(require_session)):
-    return {"id": user_id}
+    try:
+        return get_user_profile(user_id)
+    except LookupError:
+        raise HTTPException(
+            status_code=404,
+            detail="Usuário da sessão não encontrado.",
+        ) from None
+
+
+@router.post("/logout")
+async def logout(
+    response: Response,
+    session_token: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+):
+    if session_token:
+        revoke_session(session_token)
+
+    response.delete_cookie(
+        key=SESSION_COOKIE_NAME,
+        path="/",
+        httponly=True,
+        secure=SESSION_COOKIE_SECURE,
+        samesite=SESSION_COOKIE_SAMESITE,
+    )
+    return {"message": "Logout realizado com sucesso."}

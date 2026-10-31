@@ -92,6 +92,57 @@ def get_session_user_id(session_token: str) -> str | None:
     return user_id if isinstance(user_id, str) and user_id else None
 
 
+def revoke_session(session_token: str) -> None:
+    """Delete the stored hash for a session token."""
+    token_hash = hashlib.sha256(session_token.encode("utf-8")).hexdigest()
+    supabase.table("sessions").delete().eq("token", token_hash).execute()
+
+
+def get_user_profile(user_id: str) -> dict[str, str]:
+    """Fetch the signed-in user's name and, for students, their class."""
+    result = (
+        supabase.table("usuarios")
+        .select("id,nome,tipo")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        raise LookupError("usuário não encontrado")
+
+    user = result.data[0]
+    profile = {
+        "id": user_id,
+        "nome": user.get("nome") or "",
+        "tipo": user.get("tipo") or "",
+        "turma": "",
+        "pai": "",
+    }
+
+    if profile["tipo"] == "aluno":
+        enrollment = (
+            supabase.table("usuarios_dados_alunos")
+            .select("id_turma")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        if enrollment.data:
+            class_id = enrollment.data[0].get("id_turma")
+            if class_id:
+                class_result = (
+                    supabase.table("turmas")
+                    .select("nome")
+                    .eq("id", class_id)
+                    .limit(1)
+                    .execute()
+                )
+                if class_result.data:
+                    profile["turma"] = class_result.data[0].get("nome") or ""
+
+    return profile
+
+
 # -----------------------------------------------------------------------------
 # BLOCO DE FUNÇÕES ANTIGAS / REFERÊNCIA
 # -----------------------------------------------------------------------------
