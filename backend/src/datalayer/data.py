@@ -111,10 +111,11 @@ def get_user_profile(user_id: str) -> dict[str, str]:
         raise LookupError("usuário não encontrado")
 
     user = result.data[0]
+    user_type = _normalize_user_type(user.get("tipo"))
     profile = {
         "id": user_id,
         "nome": user.get("nome") or "",
-        "tipo": user.get("tipo") or "",
+        "tipo": user_type,
         "turma": "",
         "pai": "",
     }
@@ -141,6 +142,161 @@ def get_user_profile(user_id: str) -> dict[str, str]:
                     profile["turma"] = class_result.data[0].get("nome") or ""
 
     return profile
+
+
+def get_user_class_ids(user_id: str) -> list[str]:
+    """Return only the classes the signed-in user is allowed to access."""
+    user_result = (
+        supabase.table("usuarios")
+        .select("tipo")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if not user_result.data:
+        raise LookupError("usuário não encontrado")
+
+    user_type = _normalize_user_type(user_result.data[0].get("tipo"))
+    if user_type == "aluno":
+        result = (
+            supabase.table("usuarios_dados_alunos")
+            .select("id_turma")
+            .eq("id", user_id)
+            .execute()
+        )
+        return [
+            str(row["id_turma"])
+            for row in result.data
+            if row.get("id_turma") is not None
+        ]
+
+    if user_type == "professor":
+        result = (
+            supabase.table("turmas_professores")
+            .select("id_turma")
+            .eq("id_professor", user_id)
+            .execute()
+        )
+        return [
+            str(row["id_turma"])
+            for row in result.data
+            if row.get("id_turma") is not None
+        ]
+
+    if user_type == "gestao":
+        result = supabase.table("turmas").select("id").execute()
+        return [str(row["id"]) for row in result.data if row.get("id") is not None]
+
+    return []
+
+
+def get_user_type(user_id: str) -> str:
+    result = (
+        supabase.table("usuarios")
+        .select("tipo")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        raise LookupError("usuário não encontrado")
+    return _normalize_user_type(result.data[0].get("tipo"))
+
+
+def _normalize_user_type(user_type: object) -> str:
+    normalized = user_type.strip().lower() if isinstance(user_type, str) else ""
+    if normalized in {"gestor", "gestão"}:
+        return "gestao"
+    return normalized
+
+
+def get_classes_for_user(user_id: str) -> list[dict[str, str]]:
+    """Return class options limited to the user's authorized classes."""
+    class_ids = get_user_class_ids(user_id)
+    if not class_ids:
+        return []
+
+    result = (
+        supabase.table("turmas")
+        .select("id,nome")
+        .in_("id", class_ids)
+        .order("nome")
+        .execute()
+    )
+    return [
+        {"id": str(row["id"]), "nome": row.get("nome") or ""}
+        for row in result.data
+        if row.get("id") is not None
+    ]
+
+
+def get_communications_for_user(user_id: str) -> list[dict[str, object]]:
+    """List communications linked to classes the user is authorized to access."""
+    class_ids = get_user_class_ids(user_id)
+    if not class_ids:
+        return []
+
+    links = (
+        supabase.table("comunicated_turmas")
+        .select("id_comunicado,id_turma")
+        .in_("id_turma", class_ids)
+        .execute()
+    )
+    classes_by_notice: dict[str, set[str]] = {}
+    for link in links.data:
+        notice_id = link.get("id_comunicado")
+        class_id = link.get("id_turma")
+        if notice_id is not None and class_id is not None:
+            classes_by_notice.setdefault(str(notice_id), set()).add(str(class_id))
+
+    if not classes_by_notice:
+        return []
+
+    notice_ids = list(classes_by_notice)
+    result = (
+        supabase.table("comunicated")
+        .select("id,title,description,created_at")
+        .in_("id", notice_ids)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return [
+        {
+            **notice,
+            "id_turmas": sorted(classes_by_notice[str(notice["id"])]),
+        }
+        for notice in result.data
+        if str(notice.get("id")) in classes_by_notice
+    ]
+
+
+def create_communication(
+    title: str,
+    description: str,
+    class_ids: list[str],
+) -> dict[str, object]:
+    """Create one communication and link it to all selected classes."""
+    result = (
+        supabase.table("comunicated")
+        .insert({"title": title, "description": description})
+        .execute()
+    )
+    if not result.data:
+        raise RuntimeError("Supabase não retornou o comunicado criado.")
+
+    notice = result.data[0]
+    notice_id = notice.get("id")
+    if notice_id is None:
+        raise RuntimeError("O comunicado criado não possui identificador.")
+
+    supabase.table("comunicated_turmas").insert(
+        [
+            {"id_comunicado": notice_id, "id_turma": class_id}
+            for class_id in class_ids
+        ]
+    ).execute()
+
+    return {**notice, "id_turmas": class_ids}
 
 
 # -----------------------------------------------------------------------------

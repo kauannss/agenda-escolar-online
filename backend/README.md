@@ -26,3 +26,19 @@ O front-end chama a API diretamente pelo navegador, usando a URL definida em `fr
 O cookie é `HttpOnly`; o navegador o armazena e o envia nas chamadas seguintes. Como o front-end e a API podem estar em sites diferentes, o backend deve usar `SESSION_COOKIE_SAMESITE=none` e `SESSION_COOKIE_SECURE=true` para esse cenário. Em produção, a API deve usar HTTPS; para desenvolvimento, o loopback local (`localhost`/`127.0.0.1`) pode ser usado. Navegadores podem bloquear cookies de terceiros conforme as configurações de privacidade.
 
 A tela `/home` consulta `/users/me` ao abrir, mostra o perfil retornado e redireciona para `/login` quando a API responde `401`. A senha baseada na data de nascimento é temporária e fraca para uso real.
+
+## Comunicados
+
+`GET /comunicados` lista os comunicados das turmas associadas ao usuário autenticado. `GET /comunicados/turmas` lista as turmas que um professor ou usuário de gestão pode selecionar. `POST /comunicados` recebe:
+
+```json
+{
+  "title": "Reunião de famílias",
+  "description": "A reunião será na próxima quinta-feira.",
+  "id_turmas": ["id-da-turma-a", "id-da-turma-b"]
+}
+```
+
+O registro é gravado uma única vez em `comunicated` com `title` e `description`; o banco gera `id` e `created_at`. Para associá-lo a várias turmas, crie `comunicated_turmas` com as colunas `id_comunicado` (mesmo tipo de `comunicated.id`) e `id_turma` (mesmo tipo de `turmas.id`), ambas como chaves estrangeiras, e uma restrição única para o par. A coluna `comunicated.id_turma` não é usada nesse modelo e deve ser removida ou tornar-se opcional. Alunos consultam somente as turmas em que estão matriculados; professores só podem publicar nas turmas atribuídas a eles; gestão pode selecionar todas as turmas.
+
+O estado de leitura ainda não é persistido: a tabela descrita não tem dados de confirmação. RLS e permissões das tabelas devem ser configuradas para permitir as operações necessárias pelo backend sem conceder escrita pública.

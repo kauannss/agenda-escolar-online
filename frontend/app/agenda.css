@@ -154,6 +154,12 @@ main{padding:33px 0 40px;min-height:72vh}
 .agenda-dialog label{display:block;font-size:12px;font-weight:600;margin:16px 0 8px}
 .agenda-dialog input,.agenda-dialog textarea{display:block;width:100%;border:1px solid #dce5d1;border-radius:5px;padding:11px;color:#334831;background:#fcfdfb;resize:vertical}
 .agenda-dialog form>button{width:100%;margin-top:8px}
+.agenda-dialog .form-label{display:block;font-size:12px;font-weight:600;margin:16px 0 8px}
+.class-options{display:grid;gap:8px}
+.agenda-dialog label.class-option{display:flex;align-items:center;gap:9px;margin:0;padding:9px 11px;border:1px solid #dce5d1;border-radius:5px;font-weight:400}
+.agenda-dialog .class-option input{display:inline-block;width:auto;margin:0}
+.notice-state{padding:20px 23px}
+.notice-state button{margin-top:10px}
 .quiet{font-size:12px;line-height:1.8;color:#626b64;margin-top:10px}
 
 @media(max-width:1050px){.app-shell{padding:0 24px}
