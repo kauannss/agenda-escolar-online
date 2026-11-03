@@ -392,40 +392,45 @@ def editar_sala(id: str, nome: str, turno: str):
 # incluindo o relacionamento entre alunos/professores e turmas.
 # -----------------------------------------------------------------------------
 
-def criar_dados_alunos(id:str, id_turma:str,):
+def criar_dados_alunos(id: str, id_turma: str):
     # Guarda o relacionamento de um aluno com a turma em que está matriculado.
-    data = {"id":id, "id_turma":id_turma,}
-
-    try:
-        test = supabase.table("usuarios_dados_alunos").insert(data).execute()
-        print("Conexão bem-sucedida!", test.data)
-    except Exception as e:
-        print("Erro ao conectar ao Supabase:", e)
+    data = {"id": id, "id_turma": id_turma}
+    return supabase.table("usuarios_dados_alunos").insert(data).execute().data
 
 
-def create_user(id: str, type: str, name: str, date_of_birth: str, id_turma:str):
+def create_user(
+    id: str,
+    type: str,
+    name: str,
+    date_of_birth: str,
+    id_turma: str | None = None,
+):
     # Cria um usuário genérico com base no tipo informado.
     # Para alunos: salva na tabela 'usuarios' e também no relacionamento 'usuarios_dados_alunos'.
     # Para professores: salva na tabela 'usuarios' e liga o professor à turma.
-    data = {"id": id, "tipo": type, "nome": name, "data_nascimento": date_of_birth}
+    user_type = _normalize_user_type(type)
+    if user_type not in {"aluno", "professor", "gestao"}:
+        raise ValueError("Tipo de usuário inválido.")
+    class_id = id_turma or ""
+    if user_type in {"aluno", "professor"} and not class_id:
+        raise ValueError("Aluno e professor precisam estar vinculados a uma turma.")
 
-    if data["tipo"] == "aluno":
-        try:
-            test = supabase.table("usuarios").insert(data).execute()
-            print("Conexão bem-sucedida!", test.data)
-        except Exception as e:
-            print("Erro ao conectar ao Supabase:", e) 
-            
-        criar_dados_alunos(id=id, id_turma=id_turma,)
+    data = {
+        "id": id,
+        "tipo": "gestor" if user_type == "gestao" else user_type,
+        "nome": name,
+        "data_nascimento": date_of_birth,
+    }
+    result = supabase.table("usuarios").insert(data).execute()
+    if not result.data:
+        raise RuntimeError("Supabase não retornou o usuário criado.")
 
-    elif data["tipo"] == "professor":
-        try:
-            test = supabase.table("usuarios").insert(data).execute()
-            print("Conexão bem-sucedida!", test.data)
-        except Exception as e:
-            print("Erro ao conectar ao Supabase:", e)
+    if user_type == "aluno":
+        criar_dados_alunos(id=id, id_turma=class_id)
+    elif user_type == "professor":
+        criar_dados_professores(id_turma=class_id, id_professor=id)
 
-        criar_dados_professores(id_turma=id_turma, id_professor=data["id"])
+    return result.data[0]
 
 
 def delete_user(id: str):
@@ -445,15 +450,10 @@ def edite_user(id: str, name: str, date_of_birth: str):
     except Exception as e:
         print("Edição mal sucedida!", e)
 
-def criar_dados_professores(id_turma:str, id_professor:str):
+def criar_dados_professores(id_turma: str, id_professor: str):
     # Cria a associação entre professor e turma.
     data = {"id_turma": id_turma, "id_professor": id_professor}
-
-    try:
-        test = supabase.table("turmas_professores").insert(data).execute()
-        print("Conexão bem-sucedida!", test.data)
-    except Exception as e:
-        print("Erro ao conectar ao Supabase:", e)
+    return supabase.table("turmas_professores").insert(data).execute().data
 
 def consultar_user_login(id:str):
     result = supabase.table("usuarios").select("*").eq("id", id).execute()

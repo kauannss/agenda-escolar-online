@@ -37,6 +37,7 @@ main{padding:33px 0 40px;min-height:72vh}
 .eyebrow{font-size:12px;font-weight:700;letter-spacing:1.5px;color:#626b64}
 .page-heading h1{font-size:30px;font-weight:600;letter-spacing:-1.25px;margin:7px 0 9px}
 .page-heading p{color:#626b64;font-size:12px;line-height:1.6}
+.page-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .student{display:flex;gap:11px;align-items:center;border:1px solid #e2e7dc;border-radius:5px;padding:11px 17px;background:#fff}
 .student-avatar{width:37px;height:37px;display:grid;place-items:center;background:#e8efde;border-radius:50%;color:#6f864b;font-size:12px;font-weight:700}
 .student strong{font-size:12px;font-weight:600}
@@ -152,7 +153,7 @@ main{padding:33px 0 40px;min-height:72vh}
 .agenda-dialog{background:#fff!important;border-radius:5px!important;padding:28px!important}
 .full-message{font-size:14px;line-height:1.9;color:#687760;white-space:pre-wrap}
 .agenda-dialog label{display:block;font-size:12px;font-weight:600;margin:16px 0 8px}
-.agenda-dialog input,.agenda-dialog textarea{display:block;width:100%;border:1px solid #dce5d1;border-radius:5px;padding:11px;color:#334831;background:#fcfdfb;resize:vertical}
+.agenda-dialog input,.agenda-dialog textarea,.agenda-dialog select{display:block;width:100%;border:1px solid #dce5d1;border-radius:5px;padding:11px;color:#334831;background:#fcfdfb;resize:vertical}
 .agenda-dialog form>button{width:100%;margin-top:8px}
 .agenda-dialog .form-label{display:block;font-size:12px;font-weight:600;margin:16px 0 8px}
 .class-options{display:grid;gap:8px}

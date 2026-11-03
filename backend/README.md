@@ -27,6 +27,10 @@ O cookie é `HttpOnly`; o navegador o armazena e o envia nas chamadas seguintes.
 
 A tela `/home` consulta `/users/me` ao abrir, mostra o perfil retornado e redireciona para `/login` quando a API responde `401`. A senha baseada na data de nascimento é temporária e fraca para uso real.
 
+## Cadastro de usuários
+
+`POST /users/register` exige sessão autenticada de gestão. O corpo recebe `id`, `type` (`aluno`, `professor` ou `gestor`), `name`, `date_of_birth` no formato `YYYY-MM-DD` e `id_turma` para aluno/professor. Para cadastrar um gestor, não envie `id_turma`. `GET /users/classes` lista turmas apenas para gestão. O usuário é criado em `usuarios`; alunos também recebem vínculo em `usuarios_dados_alunos`, professores em `turmas_professores`, e gestores não recebem vínculo de turma.
+
 ## Comunicados
 
 `GET /comunicados` lista os comunicados das turmas associadas ao usuário autenticado. `GET /comunicados/turmas` lista as turmas que um professor ou usuário de gestão pode selecionar. `POST /comunicados` recebe:

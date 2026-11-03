@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from src.api.dtos.users import userRegistration, userLogin
 from src.datalayer.data import (
     SessionStorageNotConfigured,
     create_session,
     create_user,
+    get_classes_for_user,
     get_user_profile,
     get_session_user_id,
+    get_user_type,
     revoke_session,
     consultar_user_login,
 )
@@ -30,21 +32,6 @@ router = APIRouter(
 async def read_users():
     return [{"username": "Rick"}, {"username": "Morty"}]
 
-
-@router.post("/register")
-async def register(body: userRegistration):
-    print("register:", body)
-
-    date_data = datetime.strptime(body.date_of_birth, "%d/%m/%Y").date().isoformat()
-
-    
-    create_user(
-        body.id,
-        body.type,
-        body.name,
-        date_data,
-        body.id_turma,
-    )
 
 @router.post("/login")
 async def login(body: userLogin, response: Response):
@@ -113,6 +100,56 @@ async def require_session(
         )
 
     return user_id
+
+
+def require_manager(user_id: str = Depends(require_session)) -> str:
+    try:
+        user_type = get_user_type(user_id)
+    except LookupError:
+        raise HTTPException(
+            status_code=404,
+            detail="Usuário da sessão não encontrado.",
+        ) from None
+    if user_type != "gestao":
+        raise HTTPException(
+            status_code=403,
+            detail="Somente a gestão pode cadastrar usuários.",
+        )
+    return user_id
+
+
+@router.get("/classes")
+async def list_registration_classes(
+    _user_id: str = Depends(require_manager),
+):
+    return get_classes_for_user(_user_id)
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+async def register(
+    body: userRegistration,
+    _user_id: str = Depends(require_manager),
+):
+    if body.type in {"aluno", "professor"} and not body.id_turma:
+        raise HTTPException(
+            status_code=422,
+            detail="Selecione uma turma para aluno ou professor.",
+        )
+
+    if body.type in {"aluno", "professor"}:
+        allowed_class_ids = {
+            class_option["id"] for class_option in get_classes_for_user(_user_id)
+        }
+        if body.id_turma not in allowed_class_ids:
+            raise HTTPException(status_code=422, detail="A turma selecionada não existe.")
+
+    return create_user(
+        body.id,
+        body.type,
+        body.name,
+        body.date_of_birth.isoformat(),
+        body.id_turma,
+    )
 
 
 @router.get("/me")
