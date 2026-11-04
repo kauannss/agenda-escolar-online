@@ -144,6 +144,78 @@ def get_user_profile(user_id: str) -> dict[str, str]:
     return profile
 
 
+def list_users() -> list[dict[str, object]]:
+    """List users and their class names without exposing birth dates."""
+    users_result = (
+        supabase.table("usuarios")
+        .select("id,nome,tipo")
+        .order("nome")
+        .execute()
+    )
+    users = users_result.data
+    if not users:
+        return []
+
+    user_ids = [str(user["id"]) for user in users if user.get("id") is not None]
+    classes_by_user: dict[str, set[str]] = {}
+    class_ids: set[str] = set()
+
+    student_links = (
+        supabase.table("usuarios_dados_alunos")
+        .select("id,id_turma")
+        .in_("id", user_ids)
+        .execute()
+    )
+    teacher_links = (
+        supabase.table("turmas_professores")
+        .select("id_professor,id_turma")
+        .in_("id_professor", user_ids)
+        .execute()
+    )
+
+    for link, user_key in (
+        *((row, "id") for row in student_links.data),
+        *((row, "id_professor") for row in teacher_links.data),
+    ):
+        user_id = link.get(user_key)
+        class_id = link.get("id_turma")
+        if user_id is None or class_id is None:
+            continue
+        user_id_str = str(user_id)
+        class_id_str = str(class_id)
+        classes_by_user.setdefault(user_id_str, set()).add(class_id_str)
+        class_ids.add(class_id_str)
+
+    class_names: dict[str, str] = {}
+    if class_ids:
+        classes_result = (
+            supabase.table("turmas")
+            .select("id,nome")
+            .in_("id", list(class_ids))
+            .execute()
+        )
+        class_names = {
+            str(row["id"]): row.get("nome") or ""
+            for row in classes_result.data
+            if row.get("id") is not None
+        }
+
+    return [
+        {
+            "id": str(user["id"]),
+            "nome": user.get("nome") or "",
+            "tipo": _normalize_user_type(user.get("tipo")),
+            "turmas": sorted(
+                class_names[class_id]
+                for class_id in classes_by_user.get(str(user.get("id")), set())
+                if class_id in class_names
+            ),
+        }
+        for user in users
+        if user.get("id") is not None
+    ]
+
+
 def get_user_class_ids(user_id: str) -> list[str]:
     """Return only the classes the signed-in user is allowed to access."""
     user_result = (

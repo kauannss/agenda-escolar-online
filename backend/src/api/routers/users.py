@@ -5,6 +5,7 @@ from src.datalayer.data import (
     create_session,
     create_user,
     get_classes_for_user,
+    list_users,
     get_user_profile,
     get_session_user_id,
     get_user_type,
@@ -26,11 +27,6 @@ router = APIRouter(
     tags=["users"],
     responses={404: {"description": "Not found"}},
 )
-
-
-@router.get("/", tags=["users"])
-async def read_users():
-    return [{"username": "Rick"}, {"username": "Morty"}]
 
 
 @router.post("/login")
@@ -116,6 +112,11 @@ def require_manager(user_id: str = Depends(require_session)) -> str:
             detail="Somente a gestão pode cadastrar usuários.",
         )
     return user_id
+
+
+@router.get("/", tags=["users"])
+async def read_users(_user_id: str = Depends(require_manager)):
+    return list_users()
 
 
 @router.get("/classes")

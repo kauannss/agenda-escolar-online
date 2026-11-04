@@ -161,6 +161,12 @@ main{padding:33px 0 40px;min-height:72vh}
 .agenda-dialog .class-option input{display:inline-block;width:auto;margin:0}
 .notice-state{padding:20px 23px}
 .notice-state button{margin-top:10px}
+.users-table-wrap{width:100%;overflow-x:auto}
+.users-table{width:100%;border-collapse:collapse;text-align:left}
+.users-table th,.users-table td{padding:14px 18px;border-bottom:1px solid #e5e6e1;font-size:12px}
+.users-table th{color:#626b64;background:#fbfcf9;font-weight:600;white-space:nowrap}
+.users-table td{color:#3e503e}
+.users-table tbody tr:last-child td{border-bottom:0}
 .quiet{font-size:12px;line-height:1.8;color:#626b64;margin-top:10px}
 
 @media(max-width:1050px){.app-shell{padding:0 24px}

@@ -29,7 +29,7 @@ A tela `/home` consulta `/users/me` ao abrir, mostra o perfil retornado e redire
 
 ## Cadastro de usuários
 
-`POST /users/register` exige sessão autenticada de gestão. O corpo recebe `id`, `type` (`aluno`, `professor` ou `gestor`), `name`, `date_of_birth` no formato `YYYY-MM-DD` e `id_turma` para aluno/professor. Para cadastrar um gestor, não envie `id_turma`. `GET /users/classes` lista turmas apenas para gestão. O usuário é criado em `usuarios`; alunos também recebem vínculo em `usuarios_dados_alunos`, professores em `turmas_professores`, e gestores não recebem vínculo de turma.
+`GET /users/` lista identificador, nome, tipo e turmas dos usuários e exige sessão de gestão. Não retorna data de nascimento. `POST /users/register` também exige sessão de gestão. O corpo recebe `id`, `type` (`aluno`, `professor` ou `gestor`), `name`, `date_of_birth` no formato `YYYY-MM-DD` e `id_turma` para aluno/professor. Para cadastrar um gestor, não envie `id_turma`. `GET /users/classes` lista turmas apenas para gestão. O usuário é criado em `usuarios`; alunos também recebem vínculo em `usuarios_dados_alunos`, professores em `turmas_professores`, e gestores não recebem vínculo de turma.
 
 ## Comunicados
 
