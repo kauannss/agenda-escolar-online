@@ -46,3 +46,17 @@ A tela `/home` consulta `/users/me` ao abrir, mostra o perfil retornado e redire
 O registro é gravado uma única vez em `comunicated` com `title` e `description`; o banco gera `id` e `created_at`. Para associá-lo a várias turmas, crie `comunicated_turmas` com as colunas `id_comunicado` (mesmo tipo de `comunicated.id`) e `id_turma` (mesmo tipo de `turmas.id`), ambas como chaves estrangeiras, e uma restrição única para o par. A coluna `comunicated.id_turma` não é usada nesse modelo e deve ser removida ou tornar-se opcional. Alunos consultam somente as turmas em que estão matriculados; professores só podem publicar nas turmas atribuídas a eles; gestão pode selecionar todas as turmas.
 
 O estado de leitura ainda não é persistido: a tabela descrita não tem dados de confirmação. RLS e permissões das tabelas devem ser configuradas para permitir as operações necessárias pelo backend sem conceder escrita pública.
+
+## Eventos do calendário
+
+`GET /eventos` lista os eventos associados às turmas do usuário autenticado. `GET /eventos/turmas` lista as turmas que professores e usuários de gestão podem selecionar. `POST /eventos` é permitido somente a professores e à gestão e recebe:
+
+```json
+{
+  "nome": "Reunião de famílias",
+  "data": "2026-10-15",
+  "id_turmas": ["id-da-turma-a", "id-da-turma-b"]
+}
+```
+
+O evento é criado uma vez em `eventos` com `nome` e `data`; o banco gera o identificador. Para cada turma selecionada, o backend cria um vínculo em `eventos_turmas` usando `id_eventos` e `id_turma`. Alunos consultam somente eventos de suas turmas, professores somente eventos de turmas atribuídas a eles e a gestão pode consultar e criar eventos para todas as turmas. O backend também valida os vínculos enviados antes de gravar.

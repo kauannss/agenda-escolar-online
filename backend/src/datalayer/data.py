@@ -371,6 +371,96 @@ def create_communication(
     return {**notice, "id_turmas": class_ids}
 
 
+def get_events_for_user(user_id: str) -> list[dict[str, object]]:
+    """List events linked to classes the signed-in user can access."""
+    class_ids = get_user_class_ids(user_id)
+    if not class_ids:
+        return []
+
+    links = (
+        supabase.table("eventos_turmas")
+        .select("id_eventos,id_turma")
+        .in_("id_turma", class_ids)
+        .execute()
+    )
+    classes_by_event: dict[str, set[str]] = {}
+    for link in links.data:
+        event_id = link.get("id_eventos")
+        class_id = link.get("id_turma")
+        if event_id is not None and class_id is not None:
+            classes_by_event.setdefault(str(event_id), set()).add(str(class_id))
+
+    if not classes_by_event:
+        return []
+
+    linked_class_ids = {
+        class_id
+        for event_class_ids in classes_by_event.values()
+        for class_id in event_class_ids
+    }
+    class_result = (
+        supabase.table("turmas")
+        .select("id,nome")
+        .in_("id", list(linked_class_ids))
+        .execute()
+    )
+    class_names = {
+        str(row["id"]): row.get("nome") or ""
+        for row in class_result.data
+        if row.get("id") is not None
+    }
+
+    result = (
+        supabase.table("eventos")
+        .select("id,nome,data")
+        .in_("id", list(classes_by_event))
+        .order("data")
+        .execute()
+    )
+    return [
+        {
+            **event,
+            "id_turmas": sorted(classes_by_event[str(event["id"])]),
+            "turmas": sorted(
+                class_names[class_id]
+                for class_id in classes_by_event[str(event["id"])]
+                if class_id in class_names
+            ),
+        }
+        for event in result.data
+        if str(event.get("id")) in classes_by_event
+    ]
+
+
+def create_event(
+    name: str,
+    event_date: str,
+    class_ids: list[str],
+) -> dict[str, object]:
+    """Create one event and link it to all selected classes."""
+    result = (
+        supabase.table("eventos")
+        .insert({"nome": name, "data": event_date})
+        .execute()
+    )
+    if not result.data:
+        raise RuntimeError("Supabase não retornou o evento criado.")
+
+    event = result.data[0]
+    event_id = event.get("id")
+    if event_id is None:
+        raise RuntimeError("O evento criado não possui identificador.")
+
+    supabase.table("eventos_turmas").insert(
+        [
+            {"id_eventos": event_id, "id_turma": class_id}
+            for class_id in class_ids
+        ]
+    ).execute()
+
+    return {**event, "id_turmas": class_ids}
+
+
 # -----------------------------------------------------------------------------
 # BLOCO DE FUNÇÕES ANTIGAS / REFERÊNCIA
 # -----------------------------------------------------------------------------
