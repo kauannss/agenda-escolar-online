@@ -167,6 +167,11 @@ main{padding:33px 0 40px;min-height:72vh}
 .users-table th{color:#626b64;background:#fbfcf9;font-weight:600;white-space:nowrap}
 .users-table td{color:#3e503e}
 .users-table tbody tr:last-child td{border-bottom:0}
+.table-actions{display:flex;align-items:center;gap:7px}
+.icon-action{display:grid;place-items:center;width:34px;height:34px;border:1px solid #dfe6da;border-radius:4px;background:#fff;color:#305d46}
+.icon-action:disabled{opacity:.55}
+.icon-action.danger{color:#a63f35}
+.event-delete{margin-top:16px}
 .quiet{font-size:12px;line-height:1.8;color:#626b64;margin-top:10px}
 
 @media(max-width:1050px){.app-shell{padding:0 24px}

@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.api.dtos.events import EventCreate
-from src.api.routers.users import require_session
+from src.api.routers.users import require_manager, require_session
 from src.datalayer.data import (
     create_event,
+    delete_event,
     get_classes_for_user,
     get_events_for_user,
     get_user_class_ids,
@@ -66,3 +67,14 @@ async def publish_event(
         )
 
     return create_event(body.nome, body.data.isoformat(), body.id_turmas)
+
+
+@router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_event(
+    event_id: str,
+    _manager_id: str = Depends(require_manager),
+):
+    try:
+        delete_event(event_id)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Evento não encontrado.") from None

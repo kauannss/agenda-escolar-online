@@ -20,6 +20,26 @@ class userRegistration(BaseModel):
         return value
 
 
+class userUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    type: Literal["aluno", "professor", "gestor"]
+    date_of_birth: date
+    id_turmas: list[str] = Field(default_factory=list)
+
+    @field_validator("name")
+    @classmethod
+    def strip_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("O nome não pode ficar vazio.")
+        return value
+
+    @field_validator("id_turmas")
+    @classmethod
+    def normalize_class_ids(cls, values: list[str]) -> list[str]:
+        return list(dict.fromkeys(value.strip() for value in values if value.strip()))
+
+
 class userLogin(BaseModel):
     id:str
     password:str

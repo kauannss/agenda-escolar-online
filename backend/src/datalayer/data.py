@@ -205,6 +205,9 @@ def list_users() -> list[dict[str, object]]:
             "id": str(user["id"]),
             "nome": user.get("nome") or "",
             "tipo": _normalize_user_type(user.get("tipo")),
+            "id_turmas": sorted(
+                classes_by_user.get(str(user.get("id")), set())
+            ),
             "turmas": sorted(
                 class_names[class_id]
                 for class_id in classes_by_user.get(str(user.get("id")), set())
@@ -214,6 +217,57 @@ def list_users() -> list[dict[str, object]]:
         for user in users
         if user.get("id") is not None
     ]
+
+
+def get_manager_count() -> int:
+    result = supabase.table("usuarios").select("tipo").execute()
+    return sum(
+        _normalize_user_type(user.get("tipo")) == "gestao"
+        for user in result.data
+    )
+
+
+def get_user_for_management(user_id: str) -> dict[str, object]:
+    result = (
+        supabase.table("usuarios")
+        .select("id,nome,tipo,data_nascimento")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        raise LookupError("usuário não encontrado")
+
+    user = result.data[0]
+    user_type = _normalize_user_type(user.get("tipo"))
+    if user_type == "aluno":
+        links = (
+            supabase.table("usuarios_dados_alunos")
+            .select("id_turma")
+            .eq("id", user_id)
+            .execute()
+        )
+    elif user_type == "professor":
+        links = (
+            supabase.table("turmas_professores")
+            .select("id_turma")
+            .eq("id_professor", user_id)
+            .execute()
+        )
+    else:
+        links = None
+
+    return {
+        "id": str(user["id"]),
+        "nome": user.get("nome") or "",
+        "tipo": user_type,
+        "date_of_birth": str(user.get("data_nascimento") or ""),
+        "id_turmas": [
+            str(row["id_turma"])
+            for row in (links.data if links else [])
+            if row.get("id_turma") is not None
+        ],
+    }
 
 
 def get_user_class_ids(user_id: str) -> list[str]:
@@ -379,14 +433,14 @@ def get_events_for_user(user_id: str) -> list[dict[str, object]]:
 
     links = (
         supabase.table("eventos_turmas")
-        .select("id_eventos,id_turma")
-        .in_("id_turma", class_ids)
+        .select("id_eventos,id_turmas")
+        .in_("id_turmas", class_ids)
         .execute()
     )
     classes_by_event: dict[str, set[str]] = {}
     for link in links.data:
         event_id = link.get("id_eventos")
-        class_id = link.get("id_turma")
+        class_id = link.get("id_turmas")
         if event_id is not None and class_id is not None:
             classes_by_event.setdefault(str(event_id), set()).add(str(class_id))
 
@@ -453,12 +507,29 @@ def create_event(
 
     supabase.table("eventos_turmas").insert(
         [
-            {"id_eventos": event_id, "id_turma": class_id}
+            {"id_eventos": event_id, "id_turmas": class_id}
             for class_id in class_ids
         ]
     ).execute()
 
     return {**event, "id_turmas": class_ids}
+
+
+def delete_event(event_id: str) -> None:
+    event = (
+        supabase.table("eventos")
+        .select("id")
+        .eq("id", event_id)
+        .limit(1)
+        .execute()
+    )
+    if not event.data:
+        raise LookupError("evento não encontrado")
+
+    supabase.table("eventos_turmas").delete().eq(
+        "id_eventos", event_id
+    ).execute()
+    supabase.table("eventos").delete().eq("id", event_id).execute()
 
 
 # -----------------------------------------------------------------------------
@@ -595,22 +666,77 @@ def create_user(
     return result.data[0]
 
 
-def delete_user(id: str):
-    # Remove um usuário pela chave primária 'id'.
-    try:
-        test = supabase.table("usuarios").delete().eq("id", id).execute()
-        print("Deleção bem sucedida!", test.data)
-    except Exception as e:
-        print("Deleção mal sucedida!", e)
+def update_user(
+    user_id: str,
+    user_type: str,
+    name: str,
+    date_of_birth: str,
+    class_ids: list[str],
+) -> dict[str, object]:
+    current = (
+        supabase.table("usuarios")
+        .select("id")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if not current.data:
+        raise LookupError("usuário não encontrado")
 
-def edite_user(id: str, name: str, date_of_birth: str):
-    # Atualiza nome e data de nascimento de um usuário.
-    data = {"id": id, "nome": name, "data_nascimento": date_of_birth}
-    try:
-        test = supabase.table("usuarios").update(data).eq("id", id).execute()
-        print("Edição bem sucedida!", test.data)
-    except Exception as e:
-        print("Edição mal sucedida!", e)
+    result = (
+        supabase.table("usuarios")
+        .update({
+            "nome": name,
+            "tipo": "gestor" if user_type == "gestao" else user_type,
+            "data_nascimento": date_of_birth,
+        })
+        .eq("id", user_id)
+        .execute()
+    )
+
+    supabase.table("usuarios_dados_alunos").delete().eq("id", user_id).execute()
+    supabase.table("turmas_professores").delete().eq(
+        "id_professor", user_id
+    ).execute()
+
+    if user_type == "aluno":
+        criar_dados_alunos(id=user_id, id_turma=class_ids[0])
+    elif user_type == "professor":
+        supabase.table("turmas_professores").insert(
+            [
+                {"id_professor": user_id, "id_turma": class_id}
+                for class_id in class_ids
+            ]
+        ).execute()
+
+    if not result.data:
+        return {
+            "id": user_id,
+            "nome": name,
+            "tipo": user_type,
+            "date_of_birth": date_of_birth,
+            "id_turmas": class_ids,
+        }
+    return result.data[0]
+
+
+def delete_user(user_id: str) -> None:
+    current = (
+        supabase.table("usuarios")
+        .select("id")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if not current.data:
+        raise LookupError("usuário não encontrado")
+
+    supabase.table("sessions").delete().eq("id_usuarios", user_id).execute()
+    supabase.table("usuarios_dados_alunos").delete().eq("id", user_id).execute()
+    supabase.table("turmas_professores").delete().eq(
+        "id_professor", user_id
+    ).execute()
+    supabase.table("usuarios").delete().eq("id", user_id).execute()
 
 def criar_dados_professores(id_turma: str, id_professor: str):
     # Cria a associação entre professor e turma.

@@ -31,6 +31,8 @@ A tela `/home` consulta `/users/me` ao abrir, mostra o perfil retornado e redire
 
 `GET /users/` lista identificador, nome, tipo e turmas dos usuários e exige sessão de gestão. Não retorna data de nascimento. `POST /users/register` também exige sessão de gestão. O corpo recebe `id`, `type` (`aluno`, `professor` ou `gestor`), `name`, `date_of_birth` no formato `YYYY-MM-DD` e `id_turma` para aluno/professor. Para cadastrar um gestor, não envie `id_turma`. `GET /users/classes` lista turmas apenas para gestão. O usuário é criado em `usuarios`; alunos também recebem vínculo em `usuarios_dados_alunos`, professores em `turmas_professores`, e gestores não recebem vínculo de turma.
 
+`GET /users/{id}` retorna os dados de um usuário para edição, incluindo a data de nascimento e os IDs das turmas; `PUT /users/{id}` atualiza nome, tipo, nascimento e vínculos sem permitir mudar o identificador. Aluno deve ter exatamente uma turma, professor ao menos uma e gestor nenhuma. `DELETE /users/{id}` remove permanentemente o usuário, seus vínculos de turma e sessões. Somente a gestão pode executar essas operações; não é permitido remover a própria conta nem excluir/rebaixar o último gestor.
+
 ## Comunicados
 
 `GET /comunicados` lista os comunicados das turmas associadas ao usuário autenticado. `GET /comunicados/turmas` lista as turmas que um professor ou usuário de gestão pode selecionar. `POST /comunicados` recebe:
@@ -59,4 +61,4 @@ O estado de leitura ainda não é persistido: a tabela descrita não tem dados d
 }
 ```
 
-O evento é criado uma vez em `eventos` com `nome` e `data`; o banco gera o identificador. Para cada turma selecionada, o backend cria um vínculo em `eventos_turmas` usando `id_eventos` e `id_turma`. Alunos consultam somente eventos de suas turmas, professores somente eventos de turmas atribuídas a eles e a gestão pode consultar e criar eventos para todas as turmas. O backend também valida os vínculos enviados antes de gravar.
+O evento é criado uma vez em `eventos` com `nome` e `data`; o banco gera o identificador. Para cada turma selecionada, o backend cria um vínculo em `eventos_turmas` usando `id_eventos` e `id_turmas`. Alunos consultam somente eventos de suas turmas, professores somente eventos de turmas atribuídas a eles e a gestão pode consultar e criar eventos para todas as turmas. O backend também valida os vínculos enviados antes de gravar. `DELETE /eventos/{id}` é exclusivo da gestão e remove o evento e todos os vínculos com turmas.
