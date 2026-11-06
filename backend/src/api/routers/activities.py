@@ -32,11 +32,6 @@ def _activity_editor(user_id: str) -> tuple[str, set[str]]:
             status_code=403,
             detail="Seu perfil não pode gerenciar atividades.",
         )
-    if not class_ids:
-        raise HTTPException(
-            status_code=403,
-            detail="Não há turmas disponíveis para este perfil.",
-        )
     return user_type, class_ids
 
 
