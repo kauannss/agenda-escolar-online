@@ -571,15 +571,34 @@ def get_activity(activity_id: str) -> dict[str, object]:
 def get_activities_for_user(user_id: str) -> list[dict[str, object]]:
     user_type = get_user_type(user_id)
     class_ids = get_user_class_ids(user_id)
-    if not class_ids:
-        return []
+    if user_type == "professor":
+        activity_result = (
+            supabase.table("atividades")
+            .select("id,created_at,nome,professor_id,descricao,data_limite,materia")
+            .eq("professor_id", user_id)
+            .order("data_limite")
+            .execute()
+        )
+        activity_rows = activity_result.data
+        if not activity_rows:
+            return []
 
-    links = (
-        supabase.table("atividades_turmas")
-        .select("atividade_id,turma_id")
-        .in_("turma_id", class_ids)
-        .execute()
-    )
+        links = (
+            supabase.table("atividades_turmas")
+            .select("atividade_id,turma_id")
+            .in_("atividade_id", [str(row["id"]) for row in activity_rows])
+            .execute()
+        )
+    else:
+        if not class_ids:
+            return []
+        links = (
+            supabase.table("atividades_turmas")
+            .select("atividade_id,turma_id")
+            .in_("turma_id", class_ids)
+            .execute()
+        )
+
     classes_by_activity: dict[str, set[str]] = {}
     for link in links.data:
         activity_id = link.get("atividade_id")
@@ -589,17 +608,15 @@ def get_activities_for_user(user_id: str) -> list[dict[str, object]]:
     if not classes_by_activity:
         return []
 
-    query = (
-        supabase.table("atividades")
-        .select("id,created_at,nome,professor_id,descricao,data_limite,materia")
-        .in_("id", list(classes_by_activity))
-    )
-    if user_type == "professor":
-        query = query.eq("professor_id", user_id)
-    result = query.order("data_limite").execute()
-    activity_rows = result.data
-    if not activity_rows:
-        return []
+    if user_type != "professor":
+        result = (
+            supabase.table("atividades")
+            .select("id,created_at,nome,professor_id,descricao,data_limite,materia")
+            .in_("id", list(classes_by_activity))
+            .order("data_limite")
+            .execute()
+        )
+        activity_rows = result.data
 
     linked_class_ids = {
         class_id
@@ -636,21 +653,24 @@ def get_activities_for_user(user_id: str) -> list[dict[str, object]]:
             if row.get("id") is not None
         }
 
-    return [
-        {
+    activities: list[dict[str, object]] = []
+    for activity in activity_rows:
+        activity_id = str(activity.get("id"))
+        if activity_id not in classes_by_activity:
+            continue
+        activity_class_ids = sorted(classes_by_activity[activity_id])
+        activities.append({
             **activity,
-            "id": str(activity["id"]),
+            "id": activity_id,
             "professor_nome": teacher_names.get(str(activity.get("professor_id")), ""),
-            "id_turmas": sorted(classes_by_activity[str(activity["id"])]),
-            "turmas": sorted(
+            "id_turmas": activity_class_ids,
+            "turmas": [
                 class_names[class_id]
-                for class_id in classes_by_activity[str(activity["id"])]
+                for class_id in activity_class_ids
                 if class_id in class_names
-            ),
-        }
-        for activity in activity_rows
-        if str(activity.get("id")) in classes_by_activity
-    ]
+            ],
+        })
+    return activities
 
 
 def create_activity(

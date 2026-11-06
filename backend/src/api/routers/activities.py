@@ -132,7 +132,13 @@ async def edit_activity(
             status_code=403,
             detail="Você só pode editar atividades atribuídas a você.",
         )
-    if not set(body.id_turmas).issubset(allowed_class_ids):
+    current_class_ids = current.get("id_turmas")
+    preserved_class_ids = (
+        {str(class_id) for class_id in current_class_ids}
+        if isinstance(current_class_ids, list)
+        else set()
+    )
+    if not set(body.id_turmas).issubset(allowed_class_ids | preserved_class_ids):
         raise HTTPException(
             status_code=403,
             detail="Você não pode vincular a atividade a uma ou mais turmas selecionadas.",
