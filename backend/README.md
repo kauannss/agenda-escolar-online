@@ -13,6 +13,8 @@ CORS_ORIGINS=https://seu-projeto.vercel.app,https://www.seu-dominio.com
 
 Não use `*` para liberar qualquer origem. Depois de alterar a variável no serviço de hospedagem, reinicie ou publique novamente a API.
 
+A API permite os métodos `GET`, `POST`, `PUT`, `DELETE` e `OPTIONS`; `PUT` e `DELETE` são usados para editar/remover usuários e remover eventos. O middleware CORS permite credenciais para que o navegador envie o cookie de sessão.
+
 O front-end chama a API diretamente pelo navegador, usando a URL definida em `frontend/app/services/api.js`. Para testes com o front-end na Vercel e o backend local, o navegador precisa conseguir acessar `http://127.0.0.1:8080`; em produção, esse endereço deve ser substituído pela URL HTTPS pública do backend.
 
 ## Sessões de login
@@ -62,3 +64,9 @@ O estado de leitura ainda não é persistido: a tabela descrita não tem dados d
 ```
 
 O evento é criado uma vez em `eventos` com `nome` e `data`; o banco gera o identificador. Para cada turma selecionada, o backend cria um vínculo em `eventos_turmas` usando `id_eventos` e `id_turmas`. Alunos consultam somente eventos de suas turmas, professores somente eventos de turmas atribuídas a eles e a gestão pode consultar e criar eventos para todas as turmas. O backend também valida os vínculos enviados antes de gravar. `DELETE /eventos/{id}` é exclusivo da gestão e remove o evento e todos os vínculos com turmas.
+
+## Atividades
+
+As rotas `/atividades` consultam, criam, editam e removem atividades usando as tabelas `atividades` e `atividades_turmas`. Cada atividade armazena `nome`, `descricao`, `materia`, `data_limite` e `professor_id`; os vínculos de turma usam `atividade_id` e `turma_id`. O professor conectado é identificado pela sessão e usado automaticamente como responsável. A gestão também pode cadastrar/editar atividades, mas deve selecionar um professor responsável.
+
+Alunos veem somente atividades vinculadas às suas turmas. Professores veem e podem alterar/remover somente atividades atribuídas a eles e vinculadas às turmas que lecionam. A gestão pode consultar e gerenciar todas as atividades. A marcação de conclusão na interface do aluno é apenas local; a tabela informada não possui coluna para persistir esse status.

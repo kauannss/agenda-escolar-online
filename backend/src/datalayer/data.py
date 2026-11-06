@@ -532,6 +532,207 @@ def delete_event(event_id: str) -> None:
     supabase.table("eventos").delete().eq("id", event_id).execute()
 
 
+def list_teachers() -> list[dict[str, str]]:
+    result = supabase.table("usuarios").select("id,nome,tipo").order("nome").execute()
+    return [
+        {"id": str(row["id"]), "nome": row.get("nome") or ""}
+        for row in result.data
+        if row.get("id") is not None
+        and _normalize_user_type(row.get("tipo")) == "professor"
+    ]
+
+
+def get_activity(activity_id: str) -> dict[str, object]:
+    result = (
+        supabase.table("atividades")
+        .select("id,created_at,nome,professor_id,descricao,data_limite,materia")
+        .eq("id", activity_id)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        raise LookupError("atividade não encontrada")
+
+    activity = result.data[0]
+    links = (
+        supabase.table("atividades_turmas")
+        .select("turma_id")
+        .eq("atividade_id", activity_id)
+        .execute()
+    )
+    class_ids = sorted({
+        str(row["turma_id"])
+        for row in links.data
+        if row.get("turma_id") is not None
+    })
+    return {**activity, "id_turmas": class_ids}
+
+
+def get_activities_for_user(user_id: str) -> list[dict[str, object]]:
+    user_type = get_user_type(user_id)
+    class_ids = get_user_class_ids(user_id)
+    if not class_ids:
+        return []
+
+    links = (
+        supabase.table("atividades_turmas")
+        .select("atividade_id,turma_id")
+        .in_("turma_id", class_ids)
+        .execute()
+    )
+    classes_by_activity: dict[str, set[str]] = {}
+    for link in links.data:
+        activity_id = link.get("atividade_id")
+        class_id = link.get("turma_id")
+        if activity_id is not None and class_id is not None:
+            classes_by_activity.setdefault(str(activity_id), set()).add(str(class_id))
+    if not classes_by_activity:
+        return []
+
+    query = (
+        supabase.table("atividades")
+        .select("id,created_at,nome,professor_id,descricao,data_limite,materia")
+        .in_("id", list(classes_by_activity))
+    )
+    if user_type == "professor":
+        query = query.eq("professor_id", user_id)
+    result = query.order("data_limite").execute()
+    activity_rows = result.data
+    if not activity_rows:
+        return []
+
+    linked_class_ids = {
+        class_id
+        for activity_class_ids in classes_by_activity.values()
+        for class_id in activity_class_ids
+    }
+    class_result = (
+        supabase.table("turmas")
+        .select("id,nome")
+        .in_("id", list(linked_class_ids))
+        .execute()
+    )
+    class_names = {
+        str(row["id"]): row.get("nome") or ""
+        for row in class_result.data
+        if row.get("id") is not None
+    }
+    teacher_ids = list({
+        str(row["professor_id"])
+        for row in activity_rows
+        if row.get("professor_id") is not None
+    })
+    teacher_names: dict[str, str] = {}
+    if teacher_ids:
+        teacher_result = (
+            supabase.table("usuarios")
+            .select("id,nome")
+            .in_("id", teacher_ids)
+            .execute()
+        )
+        teacher_names = {
+            str(row["id"]): row.get("nome") or ""
+            for row in teacher_result.data
+            if row.get("id") is not None
+        }
+
+    return [
+        {
+            **activity,
+            "id": str(activity["id"]),
+            "professor_nome": teacher_names.get(str(activity.get("professor_id")), ""),
+            "id_turmas": sorted(classes_by_activity[str(activity["id"])]),
+            "turmas": sorted(
+                class_names[class_id]
+                for class_id in classes_by_activity[str(activity["id"])]
+                if class_id in class_names
+            ),
+        }
+        for activity in activity_rows
+        if str(activity.get("id")) in classes_by_activity
+    ]
+
+
+def create_activity(
+    name: str,
+    description: str,
+    subject: str,
+    due_date: str,
+    professor_id: str,
+    class_ids: list[str],
+) -> dict[str, object]:
+    result = (
+        supabase.table("atividades")
+        .insert({
+            "nome": name,
+            "descricao": description,
+            "materia": subject,
+            "data_limite": due_date,
+            "professor_id": professor_id,
+        })
+        .execute()
+    )
+    if not result.data:
+        raise RuntimeError("Supabase não retornou a atividade criada.")
+
+    activity = result.data[0]
+    activity_id = activity.get("id")
+    if activity_id is None:
+        raise RuntimeError("A atividade criada não possui identificador.")
+    supabase.table("atividades_turmas").insert(
+        [
+            {"atividade_id": activity_id, "turma_id": class_id}
+            for class_id in class_ids
+        ]
+    ).execute()
+    return {**activity, "id_turmas": class_ids}
+
+
+def update_activity(
+    activity_id: str,
+    name: str,
+    description: str,
+    subject: str,
+    due_date: str,
+    professor_id: str,
+    class_ids: list[str],
+) -> dict[str, object]:
+    result = (
+        supabase.table("atividades")
+        .update({
+            "nome": name,
+            "descricao": description,
+            "materia": subject,
+            "data_limite": due_date,
+            "professor_id": professor_id,
+        })
+        .eq("id", activity_id)
+        .execute()
+    )
+    if not result.data:
+        raise LookupError("atividade não encontrada")
+
+    supabase.table("atividades_turmas").delete().eq(
+        "atividade_id", activity_id
+    ).execute()
+    supabase.table("atividades_turmas").insert(
+        [
+            {"atividade_id": activity_id, "turma_id": class_id}
+            for class_id in class_ids
+        ]
+    ).execute()
+    return {**result.data[0], "id_turmas": class_ids}
+
+
+def delete_activity(activity_id: str) -> None:
+    if not get_activity(activity_id):
+        raise LookupError("atividade não encontrada")
+    supabase.table("atividades_turmas").delete().eq(
+        "atividade_id", activity_id
+    ).execute()
+    supabase.table("atividades").delete().eq("id", activity_id).execute()
+
+
 # -----------------------------------------------------------------------------
 # BLOCO DE FUNÇÕES ANTIGAS / REFERÊNCIA
 # -----------------------------------------------------------------------------
