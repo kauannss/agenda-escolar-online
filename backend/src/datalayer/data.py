@@ -814,13 +814,36 @@ def select_data():
 # -----------------------------------------------------------------------------
 
 def criar_sala(nome: str, turno: str):
-    # Cria uma nova turma com nome e turno.
     data = {"nome": nome, "turno": turno}
-    try:
-        test = supabase.table("turmas").insert(data).execute()
-        print("Conexão bem-sucedida!", test.data)
-    except Exception as e:
-        print("Erro ao conectar ao Supabase:", e)
+    result = supabase.table("turmas").insert(data).execute()
+    if not result.data:
+        raise RuntimeError("Supabase não retornou a turma criada.")
+    row = result.data[0]
+    if row.get("id") is None:
+        raise RuntimeError("Supabase não retornou o identificador da turma criada.")
+    return {
+        "id": str(row["id"]),
+        "nome": row.get("nome") or nome,
+        "turno": row.get("turno") or turno,
+    }
+
+
+def listar_turmas() -> list[dict[str, object]]:
+    result = (
+        supabase.table("turmas")
+        .select("id,nome,turno")
+        .order("nome")
+        .execute()
+    )
+    return [
+        {
+            "id": str(row["id"]),
+            "nome": row.get("nome") or "",
+            "turno": row.get("turno") or "",
+        }
+        for row in result.data
+        if row.get("id") is not None
+    ]
 
 def deletar_sala(nome: str):
     # Remove uma turma pelo campo 'nome'.

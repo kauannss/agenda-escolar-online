@@ -35,6 +35,10 @@ A tela `/home` consulta `/users/me` ao abrir, mostra o perfil retornado e redire
 
 `GET /users/{id}` retorna os dados de um usuário para edição, incluindo a data de nascimento e os IDs das turmas; `PUT /users/{id}` atualiza nome, tipo, nascimento e vínculos sem permitir mudar o identificador. Aluno deve ter exatamente uma turma, professor ao menos uma e gestor nenhuma. `DELETE /users/{id}` remove permanentemente o usuário, seus vínculos de turma e sessões. Somente a gestão pode executar essas operações; não é permitido remover a própria conta nem excluir/rebaixar o último gestor.
 
+## Turmas
+
+`GET /turmas` lista o identificador, nome e turno das turmas; `POST /turmas` cadastra uma turma com `nome` e `turno`. As duas rotas exigem sessão de gestão. A interface de gestão exibe a lista e o formulário de cadastro na aba **Turmas**.
+
 ## Comunicados
 
 `GET /comunicados` lista os comunicados das turmas associadas ao usuário autenticado. `GET /comunicados/turmas` lista as turmas que um professor ou usuário de gestão pode selecionar. `POST /comunicados` recebe:
