@@ -1,8 +1,8 @@
 const LOCAL_API_URL = "http://127.0.0.1:8080";
 
-export async function forwardAuthRequest(
+export async function forwardBackendRequest(
   request: Request,
-  backendPath: "/users/login" | "/users/me",
+  backendPath: string,
 ): Promise<Response> {
   const configuredApiUrl = process.env.API_URL;
   const apiUrl =
@@ -10,16 +10,25 @@ export async function forwardAuthRequest(
     (process.env.NODE_ENV === "development" ? LOCAL_API_URL : null);
 
   if (!apiUrl) {
-    console.error("API_URL is not configured for the authentication proxy.");
+    console.error("API_URL is not configured for the backend proxy.");
     return Response.json(
       { detail: "A URL da API não está configurada no servidor web." },
       { status: 500 },
     );
   }
 
+  const encodedPath = backendPath
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  const requestUrl = new URL(request.url);
   let targetUrl: URL;
   try {
-    targetUrl = new URL(backendPath, `${apiUrl.replace(/\/+$/, "")}/`);
+    targetUrl = new URL(
+      `${encodedPath}${requestUrl.search}`,
+      `${apiUrl.replace(/\/+$/, "")}/`,
+    );
   } catch {
     console.error("API_URL is not a valid URL.");
     return Response.json(
@@ -64,7 +73,7 @@ export async function forwardAuthRequest(
       error,
     );
     return Response.json(
-      { detail: "Não foi possível conectar ao serviço de autenticação." },
+      { detail: "Não foi possível conectar à API." },
       { status: 502 },
     );
   }

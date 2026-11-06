@@ -13,9 +13,9 @@ CORS_ORIGINS=https://seu-projeto.vercel.app,https://www.seu-dominio.com
 
 Não use `*` para liberar qualquer origem. Depois de alterar a variável no serviço de hospedagem, reinicie ou publique novamente a API.
 
-A API permite os métodos `GET`, `POST`, `PUT`, `DELETE` e `OPTIONS`; `PUT` e `DELETE` são usados para editar/remover usuários e remover eventos. O middleware CORS permite credenciais para que o navegador envie o cookie de sessão.
+A API permite os métodos `GET`, `POST`, `PUT`, `DELETE` e `OPTIONS`. O front-end publicado na Vercel encaminha as chamadas pelo proxy do Next, então a comunicação entre navegador e front-end é same-origin e não depende de CORS do browser. `CORS_ORIGINS` continua necessário para clientes que chamem a API diretamente.
 
-O front-end chama a API diretamente pelo navegador, usando a URL definida em `frontend/app/services/api.js`. Para testes com o front-end na Vercel e o backend local, o navegador precisa conseguir acessar `http://127.0.0.1:8080`; em produção, esse endereço deve ser substituído pela URL HTTPS pública do backend.
+No projeto Vercel, configure `API_URL` com a URL HTTPS pública do backend (por exemplo, `https://agenda-escolar-online.onrender.com`) e publique novamente. A variável é lida pelo servidor Next e não deve ter o prefixo `NEXT_PUBLIC_`.
 
 ## Sessões de login
 
@@ -25,7 +25,7 @@ O front-end chama a API diretamente pelo navegador, usando a URL definida em `fr
 
 `POST /users/logout` remove do Supabase o hash da sessão apresentada no cookie e expira o cookie no navegador. A rota retorna sucesso mesmo que o navegador não envie um cookie.
 
-O cookie é `HttpOnly`; o navegador o armazena e o envia nas chamadas seguintes. Como o front-end e a API podem estar em sites diferentes, o backend deve usar `SESSION_COOKIE_SAMESITE=none` e `SESSION_COOKIE_SECURE=true` para esse cenário. Em produção, a API deve usar HTTPS; para desenvolvimento, o loopback local (`localhost`/`127.0.0.1`) pode ser usado. Navegadores podem bloquear cookies de terceiros conforme as configurações de privacidade.
+O cookie é `HttpOnly`; o navegador o armazena no domínio da Vercel e o envia nas chamadas ao proxy do Next, que o encaminha ao backend. Em produção, a API deve usar HTTPS e `SESSION_COOKIE_SECURE=true`. O proxy usa `API_URL`; em desenvolvimento, usa `http://127.0.0.1:8080` por padrão.
 
 A tela `/home` consulta `/users/me` ao abrir, mostra o perfil retornado e redireciona para `/login` quando a API responde `401`. A senha baseada na data de nascimento é temporária e fraca para uso real.
 
