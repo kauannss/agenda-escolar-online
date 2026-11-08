@@ -119,6 +119,7 @@ def require_manager(user_id: str = Depends(require_session)) -> str:
 
 
 @router.get("/", tags=["users"])
+@router.get("", include_in_schema=False)
 async def read_users(_user_id: str = Depends(require_manager)):
     return list_users()
 
