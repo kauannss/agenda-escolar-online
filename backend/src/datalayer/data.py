@@ -425,6 +425,82 @@ def create_communication(
     return {**notice, "id_turmas": class_ids}
 
 
+def update_communication(
+    communication_id: str,
+    title: str,
+    description: str,
+    class_ids: list[str],
+) -> dict[str, object]:
+    existing = (
+        supabase.table("comunicated")
+        .select("id")
+        .eq("id", communication_id)
+        .limit(1)
+        .execute()
+    )
+    if not existing.data:
+        raise LookupError("comunicado não encontrado")
+
+    current_links = (
+        supabase.table("comunicated_turmas")
+        .select("id_turma")
+        .eq("id_comunicado", communication_id)
+        .execute()
+    )
+    current_class_ids = {
+        str(row["id_turma"])
+        for row in current_links.data
+        if row.get("id_turma") is not None
+    }
+    new_class_ids = set(class_ids)
+    class_ids_to_add = new_class_ids - current_class_ids
+    class_ids_to_remove = current_class_ids - new_class_ids
+
+    if class_ids_to_add:
+        supabase.table("comunicated_turmas").insert(
+            [
+                {"id_comunicado": communication_id, "id_turma": class_id}
+                for class_id in sorted(class_ids_to_add)
+            ]
+        ).execute()
+
+    result = (
+        supabase.table("comunicated")
+        .update({"title": title, "description": description})
+        .eq("id", communication_id)
+        .select("id,title,description,created_at")
+        .execute()
+    )
+    if not result.data:
+        raise RuntimeError("Supabase não retornou o comunicado atualizado.")
+
+    for class_id in class_ids_to_remove:
+        supabase.table("comunicated_turmas").delete().eq(
+            "id_comunicado", communication_id
+        ).eq("id_turma", class_id).execute()
+
+    return {**result.data[0], "id_turmas": class_ids}
+
+
+def delete_communication(communication_id: str) -> None:
+    existing = (
+        supabase.table("comunicated")
+        .select("id")
+        .eq("id", communication_id)
+        .limit(1)
+        .execute()
+    )
+    if not existing.data:
+        raise LookupError("comunicado não encontrado")
+
+    supabase.table("comunicated_turmas").delete().eq(
+        "id_comunicado", communication_id
+    ).execute()
+    supabase.table("comunicated").delete().eq(
+        "id", communication_id
+    ).execute()
+
+
 def get_events_for_user(user_id: str) -> list[dict[str, object]]:
     """List events linked to classes the signed-in user can access."""
     class_ids = get_user_class_ids(user_id)
@@ -845,22 +921,69 @@ def listar_turmas() -> list[dict[str, object]]:
         if row.get("id") is not None
     ]
 
-def deletar_sala(nome: str):
-    # Remove uma turma pelo campo 'nome'.
-    try:
-        test = supabase.table("turmas").delete().eq("nome", nome).execute()
-        print("Deleção bem sucedida!", test.data)
-    except Exception as e:
-        print("Deleção mal sucedida!", e)
 
-def editar_sala(id: str, nome: str, turno: str):
-    # Atualiza os dados de uma turma identificada pelo id.
+def editar_sala(id: str, nome: str, turno: str) -> dict[str, object]:
+    existing = (
+        supabase.table("turmas")
+        .select("id")
+        .eq("id", id)
+        .limit(1)
+        .execute()
+    )
+    if not existing.data:
+        raise LookupError("turma não encontrada")
+
     data = {"nome": nome, "turno": turno}
-    try:
-        test = supabase.table("turmas").update(data).eq("id", id).execute()
-        print("Edição bem sucedida!", test.data)
-    except Exception as e:
-        print("Edição mal sucedida!", e)
+    result = (
+        supabase.table("turmas")
+        .update(data)
+        .eq("id", id)
+        .select("id,nome,turno")
+        .execute()
+    )
+    if not result.data:
+        raise RuntimeError("Supabase não retornou a turma atualizada.")
+    row = result.data[0]
+    return {
+        "id": str(row.get("id") or id),
+        "nome": row.get("nome") or nome,
+        "turno": row.get("turno") or turno,
+    }
+
+
+def deletar_sala(id: str) -> None:
+    existing = (
+        supabase.table("turmas")
+        .select("id")
+        .eq("id", id)
+        .limit(1)
+        .execute()
+    )
+    if not existing.data:
+        raise LookupError("turma não encontrada")
+
+    references = (
+        ("usuarios_dados_alunos", "id_turma"),
+        ("turmas_professores", "id_turma"),
+        ("comunicated_turmas", "id_turma"),
+        ("eventos_turmas", "id_turmas"),
+        ("atividades_turmas", "turma_id"),
+    )
+    for table, class_column in references:
+        result = (
+            supabase.table(table)
+            .select(class_column)
+            .eq(class_column, id)
+            .limit(1)
+            .execute()
+        )
+        if result.data:
+            raise ValueError(
+                "A turma possui alunos, professores, comunicados, eventos ou "
+                "atividades vinculados. Remova os vínculos antes de excluí-la."
+            )
+
+    supabase.table("turmas").delete().eq("id", id).execute()
 
 # -----------------------------------------------------------------------------
 # GERENCIAMENTO DE USUÁRIOS

@@ -37,7 +37,7 @@ A tela `/home` consulta `/users/me` ao abrir, mostra o perfil retornado e redire
 
 ## Turmas
 
-`GET /turmas` lista o identificador, nome e turno das turmas; `POST /turmas` cadastra uma turma com `nome` e `turno`. As duas rotas exigem sessão de gestão. A interface de gestão exibe a lista e o formulário de cadastro na aba **Turmas**.
+`GET /turmas` lista o identificador, nome e turno das turmas; `POST /turmas` cadastra uma turma com `nome` e `turno`; `PUT /turmas/{id}` altera nome e turno; `DELETE /turmas/{id}` remove uma turma sem vínculos. Todas as rotas exigem sessão de gestão. A exclusão responde `409` quando houver alunos, professores, comunicados, eventos ou atividades vinculados à turma. A interface de gestão exibe a lista e permite cadastrar, editar e excluir turmas na aba **Turmas**.
 
 ## Comunicados
 
@@ -51,7 +51,9 @@ A tela `/home` consulta `/users/me` ao abrir, mostra o perfil retornado e redire
 }
 ```
 
-O registro é gravado uma única vez em `comunicated` com `title` e `description`; o banco gera `id` e `created_at`. Para associá-lo a várias turmas, crie `comunicated_turmas` com as colunas `id_comunicado` (mesmo tipo de `comunicated.id`) e `id_turma` (mesmo tipo de `turmas.id`), ambas como chaves estrangeiras, e uma restrição única para o par. A coluna `comunicated.id_turma` não é usada nesse modelo e deve ser removida ou tornar-se opcional. Alunos consultam somente as turmas em que estão matriculados; professores só podem publicar nas turmas atribuídas a eles; gestão pode selecionar todas as turmas.
+O registro é gravado uma única vez em `comunicated` com `title` e `description`; o banco gera `id` e `created_at`. O vínculo com várias turmas usa `comunicated_turmas`, com `id_comunicado` e `id_turma` como chaves estrangeiras. Alunos consultam somente as turmas em que estão matriculados; professores só podem publicar nas turmas atribuídas a eles; gestão pode selecionar todas as turmas.
+
+`PUT /comunicados/{id}` atualiza título, mensagem e turmas destinatárias; `DELETE /comunicados/{id}` exclui o comunicado e seus vínculos. As duas operações são exclusivas da gestão. A interface disponibiliza essas ações na aba **Comunicados** para gestores.
 
 O estado de leitura ainda não é persistido: a tabela descrita não tem dados de confirmação. RLS e permissões das tabelas devem ser configuradas para permitir as operações necessárias pelo backend sem conceder escrita pública.
 
