@@ -1,5 +1,10 @@
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
-from src.api.dtos.users import userRegistration, userUpdate, userLogin
+from src.api.dtos.users import (
+    GuardianNameUpdate,
+    userRegistration,
+    userUpdate,
+    userLogin,
+)
 from src.datalayer.data import (
     SessionStorageNotConfigured,
     create_session,
@@ -14,6 +19,7 @@ from src.datalayer.data import (
     get_user_type,
     revoke_session,
     consultar_user_login,
+    update_student_guardian_name,
     update_user,
 )
 from datetime import datetime
@@ -166,6 +172,37 @@ async def current_user(user_id: str = Depends(require_session)):
         raise HTTPException(
             status_code=404,
             detail="Usuário da sessão não encontrado.",
+        ) from None
+
+
+@router.put("/me/responsavel")
+async def update_current_student_guardian(
+    body: GuardianNameUpdate,
+    user_id: str = Depends(require_session),
+):
+    try:
+        user_type = get_user_type(user_id)
+    except LookupError:
+        raise HTTPException(
+            status_code=404,
+            detail="Usuário da sessão não encontrado.",
+        ) from None
+    if user_type != "aluno":
+        raise HTTPException(
+            status_code=403,
+            detail="Somente o aluno pode informar o nome do responsável.",
+        )
+    try:
+        return {
+            "nome_responsavel": update_student_guardian_name(
+                user_id,
+                body.nome_responsavel,
+            )
+        }
+    except LookupError:
+        raise HTTPException(
+            status_code=404,
+            detail="Vínculo de aluno não encontrado.",
         ) from None
 
 

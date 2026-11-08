@@ -21,7 +21,7 @@ No projeto Vercel, configure `API_URL` com a URL HTTPS pública do backend (por 
 
 `POST /users/login` valida o identificador e a senha temporária (data de nascimento no formato `DDMMYYYY`), cria um token aleatório e grava na tabela `sessions` somente o hash SHA-256 do token junto com `id_usuarios` e `created_at`. O token original é entregue ao navegador em um cookie `HttpOnly`, não no JSON da resposta.
 
-`GET /users/me` lê o cookie, valida a sessão no Supabase e retorna `id`, `nome`, `tipo`, `turma` e `pai`. Para aluno, `nome` vem de `usuarios`, e `turma` vem do relacionamento em `usuarios_dados_alunos` com `turmas`. `pai` fica vazio enquanto não houver um campo ou relacionamento de responsável disponível no banco. Sessões duram 12 horas por padrão; `SESSION_TTL_SECONDS` altera esse prazo. Sessões expiradas ou desconhecidas recebem `401`.
+`GET /users/me` lê o cookie, valida a sessão no Supabase e retorna `id`, `nome`, `tipo`, `turma` e `pai`. Para aluno, nome e turma vêm de `usuarios` e de seus relacionamentos; `pai` contém `usuarios_dados_alunos.nome_responsavel`. Se esse campo estiver vazio, a interface solicita o nome do responsável. `PUT /users/me/responsavel` permite que o próprio aluno autenticado salve esse nome. Sessões duram 12 horas por padrão; `SESSION_TTL_SECONDS` altera esse prazo. Sessões expiradas ou desconhecidas recebem `401`.
 
 `POST /users/logout` remove do Supabase o hash da sessão apresentada no cookie e expira o cookie no navegador. A rota retorna sucesso mesmo que o navegador não envie um cookie.
 

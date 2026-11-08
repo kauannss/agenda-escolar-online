@@ -43,3 +43,15 @@ class userUpdate(BaseModel):
 class userLogin(BaseModel):
     id:str
     password:str
+
+
+class GuardianNameUpdate(BaseModel):
+    nome_responsavel: str = Field(min_length=1, max_length=200)
+
+    @field_validator("nome_responsavel")
+    @classmethod
+    def strip_guardian_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Informe o nome do responsável.")
+        return value

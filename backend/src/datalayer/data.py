@@ -99,7 +99,7 @@ def revoke_session(session_token: str) -> None:
 
 
 def get_user_profile(user_id: str) -> dict[str, str]:
-    """Fetch the signed-in user's name and, for students, their class."""
+    """Fetch the signed-in user's name and student enrollment details."""
     result = (
         supabase.table("usuarios")
         .select("id,nome,tipo")
@@ -123,12 +123,13 @@ def get_user_profile(user_id: str) -> dict[str, str]:
     if profile["tipo"] == "aluno":
         enrollment = (
             supabase.table("usuarios_dados_alunos")
-            .select("id_turma")
+            .select("id_turma,nome_responsavel")
             .eq("id", user_id)
             .limit(1)
             .execute()
         )
         if enrollment.data:
+            profile["pai"] = enrollment.data[0].get("nome_responsavel") or ""
             class_id = enrollment.data[0].get("id_turma")
             if class_id:
                 class_result = (
@@ -142,6 +143,29 @@ def get_user_profile(user_id: str) -> dict[str, str]:
                     profile["turma"] = class_result.data[0].get("nome") or ""
 
     return profile
+
+
+def update_student_guardian_name(user_id: str, guardian_name: str) -> str:
+    enrollment = (
+        supabase.table("usuarios_dados_alunos")
+        .select("id")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if not enrollment.data:
+        raise LookupError("vínculo de aluno não encontrado")
+
+    result = (
+        supabase.table("usuarios_dados_alunos")
+        .update({"nome_responsavel": guardian_name})
+        .eq("id", user_id)
+        .select("nome_responsavel")
+        .execute()
+    )
+    if not result.data:
+        raise RuntimeError("Supabase não retornou o nome do responsável atualizado.")
+    return result.data[0].get("nome_responsavel") or guardian_name
 
 
 def list_users() -> list[dict[str, object]]:
