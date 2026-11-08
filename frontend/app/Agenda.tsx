@@ -1,5 +1,5 @@
 "use client";
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
 import { BookOpen, CalendarDays, Check, ArrowUpRight, Plus, ChevronLeft, ChevronRight, GraduationCap, FileText, Download, ArrowRight, MessageSquare, CircleCheck, LogOut, UserPlus, UsersRound, Pencil, Trash2, School } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -53,6 +53,7 @@ function Calendar({ month, setMonth, day, setDay, events, compact = false }: {
     return <div className={compact ? 'calendar compact' : 'calendar'}><div className="calendar-head"><h3>{month.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</h3><div><button aria-label="Mês anterior" onClick={() => setMonth(new Date(year, m - 1, 1))}><ChevronLeft size={18}/></button><button aria-label="Próximo mês" onClick={() => setMonth(new Date(year, m + 1, 1))}><ChevronRight size={18}/></button></div></div><div className="calendar-grid">{['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => <span className="weekday" key={'w' + i}>{d}</span>)}{Array.from({ length: offset }, (_, i) => <span key={'b' + i}/>)}{Array.from({ length: count }, (_, i) => { const key = `${year}-${String(m + 1).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`, has = events.some(e => e.data === key); return <button key={key} className={(day === key ? 'chosen ' : '') + (key === today ? 'today ' : '')} onClick={() => setDay(key)} aria-pressed={day === key} aria-label={`${i + 1} de ${month.toLocaleDateString('pt-BR', { month: 'long' })}${has ? ', com evento' : ''}`}>{i + 1}{has && <i />}</button>; })}</div><div className="calendar-legend"><span><i /> Evento escolar</span><span>Hoje: {formatDate(today)}</span></div></div>;
 }
 export default function Agenda({ user, onLogout }: { user: AgendaUser; onLogout: () => void }) {
+    const registrationInFlight = useRef(false);
     const [tab, setTab] = useState('inicio'), [notices, setNotices] = useState<Notice[]>([]), [tasks, setTasks] = useState<SchoolActivity[]>([]), [completedTaskIds, setCompletedTaskIds] = useState<string[]>([]), [selected, setSelected] = useState<string | null>(null), [editingNotice, setEditingNotice] = useState<Notice | null>(null), [savingNotice, setSavingNotice] = useState(false), [deletingNoticeId, setDeletingNoticeId] = useState<string | null>(null), [compose, setCompose] = useState(false), [registerOpen, setRegisterOpen] = useState(false), [classDialogOpen, setClassDialogOpen] = useState(false), [editingClass, setEditingClass] = useState<ClassRecord | null>(null), [deletingClassId, setDeletingClassId] = useState<string | null>(null), [eventOpen, setEventOpen] = useState(false), [activityDialogOpen, setActivityDialogOpen] = useState(false), [editingActivity, setEditingActivity] = useState<SchoolActivity | null>(null), [selectedActivityTeacher, setSelectedActivityTeacher] = useState(''), [registrationType, setRegistrationType] = useState<'aluno' | 'professor' | 'gestor'>('aluno'), [registering, setRegistering] = useState(false), [month, setMonth] = useState(() => { const today = new Date(); return new Date(today.getFullYear(), today.getMonth(), 1); }), [day, setDay] = useState(() => localDateKey(new Date()));
     const [guardianName, setGuardianName] = useState(user.pai || '');
     const [savingGuardianName, setSavingGuardianName] = useState(false);
@@ -428,6 +429,7 @@ export default function Agenda({ user, onLogout }: { user: AgendaUser; onLogout:
 
     async function registerUser(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
+        if (registrationInFlight.current) return;
         const formData = new FormData(event.currentTarget);
         const body: {
             id: string;
@@ -450,6 +452,7 @@ export default function Agenda({ user, onLogout }: { user: AgendaUser; onLogout:
             return;
         }
 
+        registrationInFlight.current = true;
         setRegistering(true);
         try {
             await api.post('/users/register', body);
@@ -459,8 +462,12 @@ export default function Agenda({ user, onLogout }: { user: AgendaUser; onLogout:
             toast.success('Usuário cadastrado com sucesso.');
         } catch (error: unknown) {
             const detail = isAxiosError<{ detail?: unknown }>(error) ? error.response?.data?.detail : undefined;
+            if (isAxiosError(error) && error.response?.status === 409) {
+                await loadUsers();
+            }
             toast.error(typeof detail === 'string' ? detail : 'Não foi possível cadastrar o usuário. Confira os dados e tente novamente.');
         } finally {
+            registrationInFlight.current = false;
             setRegistering(false);
         }
     }

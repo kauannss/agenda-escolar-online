@@ -6,6 +6,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
+from postgrest.exceptions import APIError
 from supabase import create_client, Client
 from src.api.session_config import SESSION_TTL_SECONDS
 
@@ -37,6 +38,14 @@ supabase: Client = create_client(url, key)
 
 class SessionStorageNotConfigured(RuntimeError):
     """Raised when the backend-only Supabase key for sessions is missing."""
+
+
+class UserAlreadyExistsError(ValueError):
+    """Raised when a user identifier is already registered."""
+
+
+class UserRegistrationError(RuntimeError):
+    """Raised when a user or its class association could not be created."""
 
 
 
@@ -1045,14 +1054,47 @@ def create_user(
         "nome": name,
         "data_nascimento": date_of_birth,
     }
-    result = supabase.table("usuarios").insert(data).execute()
-    if not result.data:
-        raise RuntimeError("Supabase não retornou o usuário criado.")
+    existing = (
+        supabase.table("usuarios")
+        .select("id")
+        .eq("id", id)
+        .limit(1)
+        .execute()
+    )
+    if existing.data:
+        raise UserAlreadyExistsError("Já existe um usuário com esse identificador.")
 
-    if user_type == "aluno":
-        criar_dados_alunos(id=id, id_turma=class_id)
-    elif user_type == "professor":
-        criar_dados_professores(id_turma=class_id, id_professor=id)
+    try:
+        result = supabase.table("usuarios").insert(data).execute()
+    except APIError as error:
+        if error.code == "23505" and (
+            "usuarios_pkey" in (error.details or "")
+            or "Key (id)=" in (error.details or "")
+        ):
+            raise UserAlreadyExistsError(
+                "Já existe um usuário com esse identificador."
+            ) from error
+        raise
+
+    if not result.data:
+        raise UserRegistrationError("Supabase não retornou o usuário criado.")
+
+    try:
+        if user_type == "aluno":
+            criar_dados_alunos(id=id, id_turma=class_id)
+        elif user_type == "professor":
+            criar_dados_professores(id_turma=class_id, id_professor=id)
+    except APIError as error:
+        try:
+            supabase.table("usuarios").delete().eq("id", id).execute()
+        except APIError as rollback_error:
+            raise UserRegistrationError(
+                "Falha ao criar o vínculo com a turma e ao desfazer o cadastro "
+                "do usuário. Verifique a tabela usuarios antes de tentar novamente."
+            ) from rollback_error
+        raise UserRegistrationError(
+            "Não foi possível vincular o usuário à turma. O cadastro foi desfeito."
+        ) from error
 
     return result.data[0]
 

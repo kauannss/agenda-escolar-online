@@ -7,6 +7,8 @@ from src.api.dtos.users import (
 )
 from src.datalayer.data import (
     SessionStorageNotConfigured,
+    UserAlreadyExistsError,
+    UserRegistrationError,
     create_session,
     create_user,
     delete_user,
@@ -155,13 +157,24 @@ async def register(
         if body.id_turma not in allowed_class_ids:
             raise HTTPException(status_code=422, detail="A turma selecionada não existe.")
 
-    return create_user(
-        body.id,
-        body.type,
-        body.name,
-        body.date_of_birth.isoformat(),
-        body.id_turma,
-    )
+    try:
+        return create_user(
+            body.id,
+            body.type,
+            body.name,
+            body.date_of_birth.isoformat(),
+            body.id_turma,
+        )
+    except UserAlreadyExistsError as error:
+        raise HTTPException(
+            status_code=409,
+            detail=str(error),
+        ) from error
+    except UserRegistrationError as error:
+        raise HTTPException(
+            status_code=500,
+            detail=str(error),
+        ) from error
 
 
 @router.get("/me")
