@@ -1056,13 +1056,20 @@ def create_user(
     }
     existing = (
         supabase.table("usuarios")
-        .select("id")
+        .select("id,nome,tipo,data_nascimento")
         .eq("id", id)
         .limit(1)
         .execute()
     )
     if existing.data:
-        raise UserAlreadyExistsError("Já existe um usuário com esse identificador.")
+        return _resume_user_registration(
+            existing.data[0],
+            id,
+            user_type,
+            name,
+            date_of_birth,
+            class_id,
+        )
 
     try:
         result = supabase.table("usuarios").insert(data).execute()
@@ -1071,6 +1078,22 @@ def create_user(
             "usuarios_pkey" in (error.details or "")
             or "Key (id)=" in (error.details or "")
         ):
+            existing = (
+                supabase.table("usuarios")
+                .select("id,nome,tipo,data_nascimento")
+                .eq("id", id)
+                .limit(1)
+                .execute()
+            )
+            if existing.data:
+                return _resume_user_registration(
+                    existing.data[0],
+                    id,
+                    user_type,
+                    name,
+                    date_of_birth,
+                    class_id,
+                )
             raise UserAlreadyExistsError(
                 "Já existe um usuário com esse identificador."
             ) from error
@@ -1175,6 +1198,71 @@ def criar_dados_professores(id_turma: str, id_professor: str):
     # Cria a associação entre professor e turma.
     data = {"id_turma": id_turma, "id_professor": id_professor}
     return supabase.table("turmas_professores").insert(data).execute().data
+
+
+def _resume_user_registration(
+    existing_user: dict[str, object],
+    user_id: str,
+    user_type: str,
+    name: str,
+    date_of_birth: str,
+    class_id: str,
+) -> dict[str, object]:
+    if (
+        _normalize_user_type(existing_user.get("tipo")) != user_type
+        or existing_user.get("nome") != name
+        or str(existing_user.get("data_nascimento") or "") != date_of_birth
+    ):
+        raise UserAlreadyExistsError("Já existe um usuário com esse identificador.")
+
+    if user_type == "aluno":
+        links = (
+            supabase.table("usuarios_dados_alunos")
+            .select("id_turma")
+            .eq("id", user_id)
+            .execute()
+        )
+        class_ids = {
+            str(row["id_turma"])
+            for row in links.data
+            if row.get("id_turma") is not None
+        }
+        if class_ids and class_ids != {class_id}:
+            raise UserAlreadyExistsError(
+                "O identificador já está vinculado a outra turma."
+            )
+        if not class_ids:
+            try:
+                criar_dados_alunos(id=user_id, id_turma=class_id)
+            except APIError as error:
+                raise UserRegistrationError(
+                    "Não foi possível vincular o aluno à turma."
+                ) from error
+    elif user_type == "professor":
+        links = (
+            supabase.table("turmas_professores")
+            .select("id_turma")
+            .eq("id_professor", user_id)
+            .execute()
+        )
+        class_ids = {
+            str(row["id_turma"])
+            for row in links.data
+            if row.get("id_turma") is not None
+        }
+        if class_ids and class_id not in class_ids:
+            raise UserAlreadyExistsError(
+                "O identificador já está vinculado a outra turma."
+            )
+        if not class_ids:
+            try:
+                criar_dados_professores(id_turma=class_id, id_professor=user_id)
+            except APIError as error:
+                raise UserRegistrationError(
+                    "Não foi possível vincular o professor à turma."
+                ) from error
+
+    return existing_user
 
 def consultar_user_login(id:str):
     result = supabase.table("usuarios").select("*").eq("id", id).execute()
