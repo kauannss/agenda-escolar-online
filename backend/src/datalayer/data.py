@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import os
 import random
 import secrets
@@ -9,6 +10,8 @@ from dotenv import load_dotenv
 from postgrest.exceptions import APIError
 from supabase import create_client, Client
 from src.api.session_config import SESSION_TTL_SECONDS
+
+logger = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------------------
 # CAMADA DE DADOS
@@ -1108,15 +1111,31 @@ def create_user(
         elif user_type == "professor":
             criar_dados_professores(id_turma=class_id, id_professor=id)
     except APIError as error:
+        logger.error(
+            "Supabase recusou o vínculo de turma no cadastro (tipo=%s, "
+            "SQLSTATE=%s, mensagem=%s, dica=%s)",
+            user_type,
+            error.code,
+            error.message,
+            error.hint,
+        )
         try:
             supabase.table("usuarios").delete().eq("id", id).execute()
         except APIError as rollback_error:
+            logger.error(
+                "Falha ao desfazer usuário após erro no vínculo de turma "
+                "(SQLSTATE=%s, mensagem=%s, dica=%s)",
+                rollback_error.code,
+                rollback_error.message,
+                rollback_error.hint,
+            )
             raise UserRegistrationError(
                 "Falha ao criar o vínculo com a turma e ao desfazer o cadastro "
                 "do usuário. Verifique a tabela usuarios antes de tentar novamente."
             ) from rollback_error
         raise UserRegistrationError(
-            "Não foi possível vincular o usuário à turma. O cadastro foi desfeito."
+            "Não foi possível vincular o usuário à turma. "
+            f"O cadastro foi desfeito (SQLSTATE {error.code or 'desconhecido'})."
         ) from error
 
     return result.data[0]
@@ -1235,8 +1254,16 @@ def _resume_user_registration(
             try:
                 criar_dados_alunos(id=user_id, id_turma=class_id)
             except APIError as error:
+                logger.error(
+                    "Supabase recusou o vínculo de aluno à turma "
+                    "(SQLSTATE=%s, mensagem=%s, dica=%s)",
+                    error.code,
+                    error.message,
+                    error.hint,
+                )
                 raise UserRegistrationError(
-                    "Não foi possível vincular o aluno à turma."
+                    "Não foi possível vincular o aluno à turma "
+                    f"(SQLSTATE {error.code or 'desconhecido'})."
                 ) from error
     elif user_type == "professor":
         links = (
@@ -1258,8 +1285,16 @@ def _resume_user_registration(
             try:
                 criar_dados_professores(id_turma=class_id, id_professor=user_id)
             except APIError as error:
+                logger.error(
+                    "Supabase recusou o vínculo de professor à turma "
+                    "(SQLSTATE=%s, mensagem=%s, dica=%s)",
+                    error.code,
+                    error.message,
+                    error.hint,
+                )
                 raise UserRegistrationError(
-                    "Não foi possível vincular o professor à turma."
+                    "Não foi possível vincular o professor à turma "
+                    f"(SQLSTATE {error.code or 'desconhecido'})."
                 ) from error
 
     return existing_user
